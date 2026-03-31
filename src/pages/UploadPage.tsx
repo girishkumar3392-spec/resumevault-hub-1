@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Upload, FileText, X, Check } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { addResume, getCategories } from "@/lib/store";
@@ -15,12 +15,22 @@ interface FileEntry {
   notes: string;
   progress: number;
   done: boolean;
+  uploading: boolean;
 }
 
 export default function UploadPage() {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [dragging, setDragging] = useState(false);
   const categories = getCategories().filter(c => c.active);
+  const intervalsRef = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map());
+
+  // Cleanup intervals on unmount
+  useEffect(() => {
+    return () => {
+      intervalsRef.current.forEach(interval => clearInterval(interval));
+      intervalsRef.current.clear();
+    };
+  }, []);
 
   const handleFiles = useCallback((fileList: FileList) => {
     const entries: FileEntry[] = Array.from(fileList).map(f => ({
@@ -33,12 +43,14 @@ export default function UploadPage() {
       notes: '',
       progress: 0,
       done: false,
+      uploading: false,
     }));
     setFiles(prev => [...prev, ...entries]);
   }, [categories]);
 
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault(); setDragging(false);
+    e.preventDefault();
+    setDragging(false);
     if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
   };
 
@@ -47,49 +59,84 @@ export default function UploadPage() {
   };
 
   const removeFile = (idx: number) => {
+    // Clear any running interval
+    const interval = intervalsRef.current.get(idx);
+    if (interval) {
+      clearInterval(interval);
+      intervalsRef.current.delete(idx);
+    }
     setFiles(prev => prev.filter((_, i) => i !== idx));
   };
 
   const uploadFile = (idx: number) => {
-    const entry = files[idx];
-    if (!entry.name.trim() || !entry.category) {
-      toast.error('Name and category are required');
-      return;
-    }
+    // Read current state to validate
+    setFiles(prev => {
+      const entry = prev[idx];
+      if (!entry || entry.done || entry.uploading) return prev;
 
-    // Simulate progress
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.random() * 30;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        // Read file as base64
-        const reader = new FileReader();
-        reader.onload = () => {
-          addResume({
-            name: entry.name,
-            email: entry.email,
-            phone: entry.phone,
-            category: entry.category,
-            experience: entry.experience,
-            notes: entry.notes,
-            filename: entry.file.name,
-            fileData: reader.result as string,
-          });
-          updateFile(idx, { progress: 100, done: true });
-          toast.success(`${entry.name} uploaded successfully!`);
-        };
-        reader.readAsDataURL(entry.file);
-      } else {
-        updateFile(idx, { progress });
+      if (!entry.name.trim() || !entry.category) {
+        toast.error('Name and category are required');
+        return prev;
       }
-    }, 200);
+
+      // Mark as uploading
+      const updated = [...prev];
+      updated[idx] = { ...entry, uploading: true, progress: 0 };
+
+      // Start progress simulation
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += Math.random() * 25 + 5;
+        if (progress >= 100) {
+          progress = 100;
+          clearInterval(interval);
+          intervalsRef.current.delete(idx);
+
+          // Get the latest entry data
+          setFiles(current => {
+            const currentEntry = current[idx];
+            if (!currentEntry) return current;
+
+            // Read file as base64
+            const reader = new FileReader();
+            reader.onload = () => {
+              addResume({
+                name: currentEntry.name,
+                email: currentEntry.email,
+                phone: currentEntry.phone,
+                category: currentEntry.category,
+                experience: currentEntry.experience,
+                notes: currentEntry.notes,
+                filename: currentEntry.file.name,
+                fileData: reader.result as string,
+              });
+              setFiles(p => p.map((f, i) => i === idx ? { ...f, progress: 100, done: true, uploading: false } : f));
+              toast.success(`${currentEntry.name} uploaded successfully!`);
+            };
+            reader.onerror = () => {
+              setFiles(p => p.map((f, i) => i === idx ? { ...f, uploading: false, progress: 0 } : f));
+              toast.error(`Failed to read ${currentEntry.file.name}`);
+            };
+            reader.readAsDataURL(currentEntry.file);
+            return current;
+          });
+        } else {
+          setFiles(p => p.map((f, i) => i === idx ? { ...f, progress } : f));
+        }
+      }, 200);
+
+      intervalsRef.current.set(idx, interval);
+      return updated;
+    });
   };
 
   const uploadAll = () => {
-    files.forEach((f, i) => { if (!f.done) uploadFile(i); });
+    files.forEach((f, i) => {
+      if (!f.done && !f.uploading) uploadFile(i);
+    });
   };
+
+  const pendingCount = files.filter(f => !f.done && !f.uploading).length;
 
   return (
     <>
@@ -110,7 +157,7 @@ export default function UploadPage() {
             type="file"
             multiple
             accept=".pdf,.doc,.docx,.rtf"
-            onChange={e => e.target.files && handleFiles(e.target.files)}
+            onChange={e => { if (e.target.files && e.target.files.length > 0) { handleFiles(e.target.files); e.target.value = ''; } }}
             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
           />
           <div className="w-12 h-12 bg-accent-dim rounded-xl flex items-center justify-center mx-auto mb-3.5">
@@ -128,10 +175,17 @@ export default function UploadPage() {
         {files.length > 0 && (
           <div className="mt-6 space-y-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold text-foreground">{files.length} file{files.length > 1 ? 's' : ''} selected</span>
-              <button onClick={uploadAll} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-[13.5px] font-medium hover:brightness-110 transition-all cursor-pointer">
-                <Upload className="w-4 h-4" /> Upload All
-              </button>
+              <span className="text-sm font-semibold text-foreground">
+                {files.length} file{files.length > 1 ? 's' : ''} selected
+                {files.filter(f => f.done).length > 0 && (
+                  <span className="text-green ml-2">({files.filter(f => f.done).length} uploaded)</span>
+                )}
+              </span>
+              {pendingCount > 0 && (
+                <button onClick={uploadAll} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-[13.5px] font-medium hover:brightness-110 transition-all cursor-pointer">
+                  <Upload className="w-4 h-4" /> Upload All ({pendingCount})
+                </button>
+              )}
             </div>
 
             {files.map((entry, i) => (
@@ -143,20 +197,23 @@ export default function UploadPage() {
               >
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-9 h-9 bg-accent-dim rounded-lg flex items-center justify-center shrink-0">
-                    {entry.done ? <Check className="w-4.5 h-4.5 text-green" /> : <FileText className="w-4.5 h-4.5 text-primary" />}
+                    {entry.done ? <Check className="w-[18px] h-[18px] text-green" /> : <FileText className="w-[18px] h-[18px] text-primary" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[13.5px] font-semibold truncate">{entry.file.name}</div>
                     <div className="text-xs text-muted-foreground">{(entry.file.size / 1024).toFixed(1)} KB</div>
                   </div>
-                  {!entry.done && (
+                  {!entry.done && !entry.uploading && (
                     <button onClick={() => removeFile(i)} className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-destructive hover:border-destructive hover:bg-red-dim transition-all cursor-pointer">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   )}
+                  {entry.uploading && (
+                    <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                  )}
                 </div>
 
-                {!entry.done ? (
+                {!entry.done && !entry.uploading ? (
                   <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                       <div>
@@ -193,12 +250,17 @@ export default function UploadPage() {
                         <Upload className="w-3.5 h-3.5" /> Upload
                       </button>
                     </div>
-                    {entry.progress > 0 && entry.progress < 100 && (
-                      <div className="h-1 bg-hover rounded-full overflow-hidden mt-2">
-                        <div className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-300" style={{ width: entry.progress + '%' }} />
-                      </div>
-                    )}
                   </>
+                ) : entry.uploading ? (
+                  <div className="mt-1">
+                    <div className="flex justify-between text-[12px] text-muted-foreground mb-1.5">
+                      <span>Uploading...</span>
+                      <span>{Math.round(entry.progress)}%</span>
+                    </div>
+                    <div className="h-1.5 bg-hover rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-300" style={{ width: entry.progress + '%' }} />
+                    </div>
+                  </div>
                 ) : (
                   <div className="text-[13px] text-green flex items-center gap-1.5">
                     <Check className="w-4 h-4" /> Uploaded successfully
