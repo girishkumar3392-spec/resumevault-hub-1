@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Upload, FileText, X, Check } from "lucide-react";
+import { Upload, FileText, X, Check, Eye } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { addResume, getCategories } from "@/lib/store";
 import { toast } from "sonner";
@@ -16,19 +16,22 @@ interface FileEntry {
   progress: number;
   done: boolean;
   uploading: boolean;
+  previewUrl: string | null;
 }
 
 export default function UploadPage() {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [previewFile, setPreviewFile] = useState<string | null>(null);
   const categories = getCategories().filter(c => c.active);
   const intervalsRef = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map());
 
-  // Cleanup intervals on unmount
   useEffect(() => {
     return () => {
       intervalsRef.current.forEach(interval => clearInterval(interval));
       intervalsRef.current.clear();
+      // Revoke preview URLs
+      files.forEach(f => { if (f.previewUrl) URL.revokeObjectURL(f.previewUrl); });
     };
   }, []);
 
@@ -44,6 +47,7 @@ export default function UploadPage() {
       progress: 0,
       done: false,
       uploading: false,
+      previewUrl: f.type === 'application/pdf' ? URL.createObjectURL(f) : null,
     }));
     setFiles(prev => [...prev, ...entries]);
   }, [categories]);
@@ -59,80 +63,73 @@ export default function UploadPage() {
   };
 
   const removeFile = (idx: number) => {
-    // Clear any running interval
     const interval = intervalsRef.current.get(idx);
-    if (interval) {
-      clearInterval(interval);
-      intervalsRef.current.delete(idx);
-    }
-    setFiles(prev => prev.filter((_, i) => i !== idx));
+    if (interval) { clearInterval(interval); intervalsRef.current.delete(idx); }
+    setFiles(prev => {
+      const f = prev[idx];
+      if (f?.previewUrl) URL.revokeObjectURL(f.previewUrl);
+      return prev.filter((_, i) => i !== idx);
+    });
   };
 
   const uploadFile = (idx: number) => {
-    // Read current state to validate
-    setFiles(prev => {
-      const entry = prev[idx];
-      if (!entry || entry.done || entry.uploading) return prev;
+    const entry = files[idx];
+    if (!entry || entry.done || entry.uploading) return;
+    if (!entry.name.trim() || !entry.category) {
+      toast.error('Name and category are required');
+      return;
+    }
 
-      if (!entry.name.trim() || !entry.category) {
-        toast.error('Name and category are required');
-        return prev;
-      }
+    // Mark as uploading
+    updateFile(idx, { uploading: true, progress: 0 });
 
-      // Mark as uploading
-      const updated = [...prev];
-      updated[idx] = { ...entry, uploading: true, progress: 0 };
+    // Keep a reference to the File object and entry data
+    const fileRef = entry.file;
+    const entrySnapshot = { ...entry };
 
-      // Start progress simulation
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += Math.random() * 25 + 5;
-        if (progress >= 100) {
-          progress = 100;
-          clearInterval(interval);
-          intervalsRef.current.delete(idx);
+    // Simulate progress
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 25 + 5;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(interval);
+        intervalsRef.current.delete(idx);
 
-          // Get the latest entry data
-          setFiles(current => {
-            const currentEntry = current[idx];
-            if (!currentEntry) return current;
-
-            // Read file as base64
-            const reader = new FileReader();
-            reader.onload = () => {
-              addResume({
-                name: currentEntry.name,
-                email: currentEntry.email,
-                phone: currentEntry.phone,
-                category: currentEntry.category,
-                experience: currentEntry.experience,
-                notes: currentEntry.notes,
-                filename: currentEntry.file.name,
-                fileData: reader.result as string,
-              });
-              setFiles(p => p.map((f, i) => i === idx ? { ...f, progress: 100, done: true, uploading: false } : f));
-              toast.success(`${currentEntry.name} uploaded successfully!`);
-            };
-            reader.onerror = () => {
-              setFiles(p => p.map((f, i) => i === idx ? { ...f, uploading: false, progress: 0 } : f));
-              toast.error(`Failed to read ${currentEntry.file.name}`);
-            };
-            reader.readAsDataURL(currentEntry.file);
-            return current;
+        // Read the file - using the File reference directly, NOT from state
+        const reader = new FileReader();
+        reader.onload = () => {
+          addResume({
+            name: entrySnapshot.name,
+            email: entrySnapshot.email,
+            phone: entrySnapshot.phone,
+            category: entrySnapshot.category,
+            experience: entrySnapshot.experience,
+            notes: entrySnapshot.notes,
+            filename: fileRef.name,
+            fileData: reader.result as string,
           });
-        } else {
-          setFiles(p => p.map((f, i) => i === idx ? { ...f, progress } : f));
-        }
-      }, 200);
+          updateFile(idx, { progress: 100, done: true, uploading: false });
+          toast.success(`${entrySnapshot.name} uploaded successfully!`);
+        };
+        reader.onerror = () => {
+          updateFile(idx, { uploading: false, progress: 0 });
+          toast.error(`Failed to read ${fileRef.name}`);
+        };
+        reader.readAsDataURL(fileRef);
+      } else {
+        updateFile(idx, { progress });
+      }
+    }, 200);
 
-      intervalsRef.current.set(idx, interval);
-      return updated;
-    });
+    intervalsRef.current.set(idx, interval);
   };
 
   const uploadAll = () => {
     files.forEach((f, i) => {
-      if (!f.done && !f.uploading) uploadFile(i);
+      if (!f.done && !f.uploading) {
+        setTimeout(() => uploadFile(i), i * 100);
+      }
     });
   };
 
@@ -203,15 +200,37 @@ export default function UploadPage() {
                     <div className="text-[13.5px] font-semibold truncate">{entry.file.name}</div>
                     <div className="text-xs text-muted-foreground">{(entry.file.size / 1024).toFixed(1)} KB</div>
                   </div>
-                  {!entry.done && !entry.uploading && (
-                    <button onClick={() => removeFile(i)} className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-destructive hover:border-destructive hover:bg-red-dim transition-all cursor-pointer">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  {entry.uploading && (
-                    <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {entry.previewUrl && (
+                      <button
+                        onClick={() => setPreviewFile(previewFile === entry.previewUrl ? null : entry.previewUrl)}
+                        className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-primary hover:border-primary/30 transition-all cursor-pointer"
+                        title="Preview PDF"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {!entry.done && !entry.uploading && (
+                      <button onClick={() => removeFile(i)} className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-destructive hover:border-destructive hover:bg-red-dim transition-all cursor-pointer">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {entry.uploading && (
+                      <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    )}
+                  </div>
                 </div>
+
+                {/* Live PDF Preview */}
+                {previewFile === entry.previewUrl && entry.previewUrl && (
+                  <div className="mb-3 rounded-lg overflow-hidden border border-border bg-background">
+                    <iframe
+                      src={entry.previewUrl}
+                      className="w-full h-[400px] bg-white"
+                      title={`Preview: ${entry.file.name}`}
+                    />
+                  </div>
+                )}
 
                 {!entry.done && !entry.uploading ? (
                   <>
