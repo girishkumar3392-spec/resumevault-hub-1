@@ -43,7 +43,7 @@ export default function AnalyticsPage() {
   return (
     <>
       <PageHeader title="Analytics" subtitle="Insights & statistics" />
-      <div className="p-7 flex-1">
+      <div className="p-4 md:p-7 flex-1">
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           {stats.map((s, i) => (

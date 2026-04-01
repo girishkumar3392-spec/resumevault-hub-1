@@ -68,7 +68,7 @@ export default function SettingsPage() {
               <label className="block text-[13px] font-medium text-muted-foreground mb-1.5">Current Password</label>
               <input type="password" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} className="w-full py-2 px-3 bg-input border border-border rounded-md text-foreground text-sm outline-none focus:border-primary/50 transition-all" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[13px] font-medium text-muted-foreground mb-1.5">New Password</label>
                 <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} className="w-full py-2 px-3 bg-input border border-border rounded-md text-foreground text-sm outline-none focus:border-primary/50 transition-all" />
