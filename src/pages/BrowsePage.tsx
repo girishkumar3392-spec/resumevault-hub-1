@@ -192,6 +192,7 @@ export default function BrowsePage() {
                   ['Name', detail.name],
                   ['Email', detail.email || '—'],
                   ['Phone', detail.phone || '—'],
+                  ['Location', detail.location || '—'],
                   ['Category', detail.category],
                   ['Experience', detail.experience],
                   ['Notes', detail.notes || '—'],

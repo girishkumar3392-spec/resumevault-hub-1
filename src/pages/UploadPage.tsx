@@ -263,6 +263,10 @@ export default function UploadPage() {
                         <input value={entry.phone} onChange={e => updateFile(i, { phone: e.target.value })} placeholder="Phone number" className="w-full py-2 px-3 bg-input border border-border rounded-md text-foreground text-sm outline-none focus:border-primary/50 transition-all placeholder:text-muted-foreground" />
                       </div>
                       <div>
+                        <label className="block text-[12px] font-medium text-muted-foreground mb-1">Location</label>
+                        <input value={entry.location} onChange={e => updateFile(i, { location: e.target.value })} placeholder="e.g. Jaipur, Mumbai, Delhi" className="w-full py-2 px-3 bg-input border border-border rounded-md text-foreground text-sm outline-none focus:border-primary/50 transition-all placeholder:text-muted-foreground" />
+                      </div>
+                      <div>
                         <label className="block text-[12px] font-medium text-muted-foreground mb-1">Notes</label>
                         <input value={entry.notes} onChange={e => updateFile(i, { notes: e.target.value })} placeholder="Optional notes" className="w-full py-2 px-3 bg-input border border-border rounded-md text-foreground text-sm outline-none focus:border-primary/50 transition-all placeholder:text-muted-foreground" />
                       </div>

@@ -204,8 +204,8 @@ export function getResumesByWeek(weeks: number): number[] {
 
 export function exportCSV() {
   const resumes = getResumes();
-  const headers = ['ID', 'Name', 'Email', 'Phone', 'Category', 'Experience', 'Notes', 'Filename', 'Upload Date'];
-  const rows = resumes.map(r => [r.id, r.name, r.email, r.phone, r.category, r.experience, (r.notes || '').replace(/,/g, ';'), r.filename, formatDate(r.uploadDate)]);
+  const headers = ['ID', 'Name', 'Email', 'Phone', 'Location', 'Category', 'Experience', 'Notes', 'Filename', 'Upload Date'];
+  const rows = resumes.map(r => [r.id, r.name, r.email, r.phone, r.location || '', r.category, r.experience, (r.notes || '').replace(/,/g, ';'), r.filename, formatDate(r.uploadDate)]);
   const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
