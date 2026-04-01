@@ -39,7 +39,7 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader title="Settings" subtitle="Manage your preferences" />
-      <div className="p-7 flex-1 max-w-2xl">
+      <div className="p-4 md:p-7 flex-1 max-w-2xl">
         {/* General */}
         <div className="bg-card border border-border rounded-lg p-6 mb-5">
           <h3 className="text-[15px] font-display font-bold text-foreground mb-1.5">General Settings</h3>
