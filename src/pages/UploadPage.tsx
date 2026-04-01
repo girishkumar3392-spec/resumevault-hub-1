@@ -141,7 +141,7 @@ export default function UploadPage() {
   return (
     <>
       <PageHeader title="Upload Resume" subtitle="Add new resumes to the database" />
-      <div className="p-7 flex-1">
+      <div className="p-4 md:p-7 flex-1">
         {/* Drop zone */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
