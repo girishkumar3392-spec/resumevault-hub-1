@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, Eye, Trash2, Download, FileText, X, MapPin } from "lucide-react";
+import { Search, Eye, Trash2, Download, FileText, X, MapPin, SlidersHorizontal } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { getResumes, getCategories, deleteResume, formatDate, categoryColor, categoryInitials, exportCSV } from "@/lib/store";
 import { toast } from "sonner";
