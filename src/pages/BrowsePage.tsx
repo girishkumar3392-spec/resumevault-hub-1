@@ -54,10 +54,19 @@ export default function BrowsePage() {
           <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Export CSV</span>
         </button>
       </PageHeader>
-      <div className="p-7 flex-1">
-        <div className="flex gap-5 items-start">
+      <div className="p-4 md:p-7 flex-1">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-5 items-start">
+          {/* Mobile filter toggle */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="md:hidden w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 bg-card border border-border rounded-lg text-[13px] font-medium text-foreground cursor-pointer"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filters {(catFilter.length + expFilter.length + locFilter.length) > 0 && `(${catFilter.length + expFilter.length + locFilter.length})`}
+          </button>
+
           {/* Filter sidebar */}
-          <div className="w-60 shrink-0 bg-card border border-border rounded-lg p-4 sticky top-20">
+          <div className={`w-full md:w-60 shrink-0 bg-card border border-border rounded-lg p-4 md:sticky md:top-20 ${showFilters ? 'block' : 'hidden md:block'}`}>
             <div className="text-[13px] font-bold text-foreground mb-3.5 flex items-center justify-between">
               Filters
               {(catFilter.length > 0 || expFilter.length > 0 || locFilter.length > 0) && (
