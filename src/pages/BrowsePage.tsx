@@ -9,6 +9,7 @@ export default function BrowsePage() {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState<string[]>([]);
   const [expFilter, setExpFilter] = useState<string[]>([]);
+  const [locFilter, setLocFilter] = useState<string[]>([]);
   const [viewResume, setViewResume] = useState<string | null>(null);
   const [, setTick] = useState(0);
 
