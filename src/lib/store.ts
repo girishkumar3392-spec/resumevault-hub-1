@@ -12,6 +12,7 @@ export interface Resume {
   name: string;
   email: string;
   phone: string;
+  location: string;
   category: string;
   experience: string;
   notes: string;
