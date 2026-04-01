@@ -16,14 +16,20 @@ export default function BrowsePage() {
   const categories = getCategories().filter(c => c.active);
   const allResumes = getResumes();
 
+  const allLocations = useMemo(() => {
+    const locs = allResumes.map(r => r.location || '').filter(Boolean);
+    return [...new Set(locs)].sort();
+  }, [allResumes]);
+
   const filtered = useMemo(() => {
     return allResumes.filter(r => {
-      const matchSearch = !search || r.name.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase()) || (r.email || '').toLowerCase().includes(search.toLowerCase());
+      const matchSearch = !search || r.name.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase()) || (r.email || '').toLowerCase().includes(search.toLowerCase()) || (r.location || '').toLowerCase().includes(search.toLowerCase());
       const matchCat = catFilter.length === 0 || catFilter.includes(r.category);
       const matchExp = expFilter.length === 0 || expFilter.includes(r.experience);
-      return matchSearch && matchCat && matchExp;
+      const matchLoc = locFilter.length === 0 || locFilter.includes(r.location || '');
+      return matchSearch && matchCat && matchExp && matchLoc;
     });
-  }, [allResumes, search, catFilter, expFilter]);
+  }, [allResumes, search, catFilter, expFilter, locFilter]);
 
   const toggleFilter = (arr: string[], val: string, setter: React.Dispatch<React.SetStateAction<string[]>>) => {
     setter(arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val]);
