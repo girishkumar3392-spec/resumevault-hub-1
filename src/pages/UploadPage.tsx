@@ -12,6 +12,7 @@ interface FileEntry {
   experience: string;
   email: string;
   phone: string;
+  location: string;
   notes: string;
   progress: number;
   done: boolean;
