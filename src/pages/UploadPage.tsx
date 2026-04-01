@@ -44,6 +44,7 @@ export default function UploadPage() {
       experience: 'Mid-Level',
       email: '',
       phone: '',
+      location: '',
       notes: '',
       progress: 0,
       done: false,
