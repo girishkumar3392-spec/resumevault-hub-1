@@ -124,6 +124,11 @@ export default function BrowsePage() {
                       <div className="min-w-0">
                         <div className="text-sm font-semibold text-foreground leading-tight mb-0.5">{r.name}</div>
                         <div className="text-xs text-muted-foreground">{r.email || r.phone || '—'}</div>
+                        {r.location && (
+                          <div className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3" /> {r.location}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1.5 mb-3">
