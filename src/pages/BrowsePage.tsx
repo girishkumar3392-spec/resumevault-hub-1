@@ -12,6 +12,7 @@ export default function BrowsePage() {
   const [locFilter, setLocFilter] = useState<string[]>([]);
   const [viewResume, setViewResume] = useState<string | null>(null);
   const [, setTick] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
 
   const categories = getCategories().filter(c => c.active);
   const allResumes = getResumes();
