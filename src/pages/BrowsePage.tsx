@@ -50,8 +50,8 @@ export default function BrowsePage() {
   return (
     <>
       <PageHeader title="Browse Resumes" subtitle={`${allResumes.length} resumes in database`}>
-        <button onClick={exportCSV} className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-card border border-border rounded-md text-[13px] font-medium text-foreground hover:border-primary/30 transition-all cursor-pointer">
-          <Download className="w-3.5 h-3.5" /> Export CSV
+        <button onClick={exportCSV} className="inline-flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-md text-[12px] md:text-[13px] font-medium text-foreground hover:border-primary/30 transition-all cursor-pointer">
+          <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Export CSV</span>
         </button>
       </PageHeader>
       <div className="p-7 flex-1">
