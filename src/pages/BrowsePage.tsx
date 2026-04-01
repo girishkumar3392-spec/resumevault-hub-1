@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, Eye, Trash2, Download, FileText, X } from "lucide-react";
+import { Search, Eye, Trash2, Download, FileText, X, MapPin } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { getResumes, getCategories, deleteResume, formatDate, categoryColor, categoryInitials, exportCSV } from "@/lib/store";
 import { toast } from "sonner";
@@ -9,20 +9,27 @@ export default function BrowsePage() {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState<string[]>([]);
   const [expFilter, setExpFilter] = useState<string[]>([]);
+  const [locFilter, setLocFilter] = useState<string[]>([]);
   const [viewResume, setViewResume] = useState<string | null>(null);
   const [, setTick] = useState(0);
 
   const categories = getCategories().filter(c => c.active);
   const allResumes = getResumes();
 
+  const allLocations = useMemo(() => {
+    const locs = allResumes.map(r => r.location || '').filter(Boolean);
+    return [...new Set(locs)].sort();
+  }, [allResumes]);
+
   const filtered = useMemo(() => {
     return allResumes.filter(r => {
-      const matchSearch = !search || r.name.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase()) || (r.email || '').toLowerCase().includes(search.toLowerCase());
+      const matchSearch = !search || r.name.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase()) || (r.email || '').toLowerCase().includes(search.toLowerCase()) || (r.location || '').toLowerCase().includes(search.toLowerCase());
       const matchCat = catFilter.length === 0 || catFilter.includes(r.category);
       const matchExp = expFilter.length === 0 || expFilter.includes(r.experience);
-      return matchSearch && matchCat && matchExp;
+      const matchLoc = locFilter.length === 0 || locFilter.includes(r.location || '');
+      return matchSearch && matchCat && matchExp && matchLoc;
     });
-  }, [allResumes, search, catFilter, expFilter]);
+  }, [allResumes, search, catFilter, expFilter, locFilter]);
 
   const toggleFilter = (arr: string[], val: string, setter: React.Dispatch<React.SetStateAction<string[]>>) => {
     setter(arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val]);
@@ -52,8 +59,8 @@ export default function BrowsePage() {
           <div className="w-60 shrink-0 bg-card border border-border rounded-lg p-4 sticky top-20">
             <div className="text-[13px] font-bold text-foreground mb-3.5 flex items-center justify-between">
               Filters
-              {(catFilter.length > 0 || expFilter.length > 0) && (
-                <button onClick={() => { setCatFilter([]); setExpFilter([]); }} className="text-[11px] text-primary cursor-pointer hover:underline">Clear</button>
+              {(catFilter.length > 0 || expFilter.length > 0 || locFilter.length > 0) && (
+                <button onClick={() => { setCatFilter([]); setExpFilter([]); setLocFilter([]); }} className="text-[11px] text-primary cursor-pointer hover:underline">Clear</button>
               )}
             </div>
 
@@ -68,6 +75,24 @@ export default function BrowsePage() {
                   </span>
                 </label>
               ))}
+            </div>
+
+            <div className="mb-4">
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Location</div>
+              <div className="max-h-48 overflow-y-auto space-y-0.5">
+                {allLocations.map(loc => {
+                  const count = allResumes.filter(r => r.location === loc).length;
+                  return (
+                    <label key={loc} className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer text-[13px] text-muted-foreground hover:bg-hover hover:text-foreground transition-all">
+                      <input type="checkbox" checked={locFilter.includes(loc)} onChange={() => toggleFilter(locFilter, loc, setLocFilter)} className="accent-primary w-3.5 h-3.5" />
+                      <MapPin className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{loc}</span>
+                      <span className="ml-auto text-[11px] text-muted-foreground bg-hover px-1.5 py-0.5 rounded-full shrink-0">{count}</span>
+                    </label>
+                  );
+                })}
+                {allLocations.length === 0 && <p className="text-[11px] text-muted-foreground py-1">No locations yet</p>}
+              </div>
             </div>
 
             <div>
@@ -117,6 +142,11 @@ export default function BrowsePage() {
                       <div className="min-w-0">
                         <div className="text-sm font-semibold text-foreground leading-tight mb-0.5">{r.name}</div>
                         <div className="text-xs text-muted-foreground">{r.email || r.phone || '—'}</div>
+                        {r.location && (
+                          <div className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3" /> {r.location}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1.5 mb-3">
@@ -180,6 +210,7 @@ export default function BrowsePage() {
                   ['Name', detail.name],
                   ['Email', detail.email || '—'],
                   ['Phone', detail.phone || '—'],
+                  ['Location', detail.location || '—'],
                   ['Category', detail.category],
                   ['Experience', detail.experience],
                   ['Notes', detail.notes || '—'],

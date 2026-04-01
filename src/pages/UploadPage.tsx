@@ -12,6 +12,7 @@ interface FileEntry {
   experience: string;
   email: string;
   phone: string;
+  location: string;
   notes: string;
   progress: number;
   done: boolean;
@@ -43,6 +44,7 @@ export default function UploadPage() {
       experience: 'Mid-Level',
       email: '',
       phone: '',
+      location: '',
       notes: '',
       progress: 0,
       done: false,
@@ -103,6 +105,7 @@ export default function UploadPage() {
             name: entrySnapshot.name,
             email: entrySnapshot.email,
             phone: entrySnapshot.phone,
+            location: entrySnapshot.location,
             category: entrySnapshot.category,
             experience: entrySnapshot.experience,
             notes: entrySnapshot.notes,
@@ -258,6 +261,10 @@ export default function UploadPage() {
                       <div>
                         <label className="block text-[12px] font-medium text-muted-foreground mb-1">Phone</label>
                         <input value={entry.phone} onChange={e => updateFile(i, { phone: e.target.value })} placeholder="Phone number" className="w-full py-2 px-3 bg-input border border-border rounded-md text-foreground text-sm outline-none focus:border-primary/50 transition-all placeholder:text-muted-foreground" />
+                      </div>
+                      <div>
+                        <label className="block text-[12px] font-medium text-muted-foreground mb-1">Location</label>
+                        <input value={entry.location} onChange={e => updateFile(i, { location: e.target.value })} placeholder="e.g. Jaipur, Mumbai, Delhi" className="w-full py-2 px-3 bg-input border border-border rounded-md text-foreground text-sm outline-none focus:border-primary/50 transition-all placeholder:text-muted-foreground" />
                       </div>
                       <div>
                         <label className="block text-[12px] font-medium text-muted-foreground mb-1">Notes</label>

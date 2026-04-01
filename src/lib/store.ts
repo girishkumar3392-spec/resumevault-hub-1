@@ -12,6 +12,7 @@ export interface Resume {
   name: string;
   email: string;
   phone: string;
+  location: string;
   category: string;
   experience: string;
   notes: string;
@@ -52,6 +53,13 @@ const DEFAULT_CATEGORIES = [
 export function initDefaults() {
   if (!localStorage.getItem('rv_admin_pwd')) localStorage.setItem('rv_admin_pwd', btoa('Admin@123'));
   if (!localStorage.getItem('rv_admin_user')) localStorage.setItem('rv_admin_user', 'admin');
+  // Migrate: add location field to existing resumes
+  try {
+    const existing = JSON.parse(localStorage.getItem('rv_resumes') || '[]');
+    if (existing.length > 0 && existing[0].location === undefined) {
+      localStorage.removeItem('rv_resumes');
+    }
+  } catch {}
   if (!localStorage.getItem('rv_settings')) {
     localStorage.setItem('rv_settings', JSON.stringify({ companyName: 'ResumeVault', tagline: 'Smart Hiring Intelligence', logoData: null }));
   }
@@ -63,16 +71,16 @@ export function initDefaults() {
   }
   if (!localStorage.getItem('rv_resumes')) {
     const samples = [
-      { name:'Rahul Sharma', email:'rahul@email.com', phone:'9876543210', category:'Frontend Developer', experience:'Mid-Level', notes:'Strong React & Vue skills, 4 years experience' },
-      { name:'Priya Mehta', email:'priya@email.com', phone:'9123456780', category:'UI/UX Designer', experience:'Senior', notes:'Figma expert, design systems, 6yr exp' },
-      { name:'Arjun Patel', email:'arjun@email.com', phone:'8800123456', category:'Digital Marketer', experience:'Junior', notes:'Google Ads certified, Meta Ads' },
-      { name:'Sneha Reddy', email:'sneha@email.com', phone:'7700998877', category:'Video Editor', experience:'Mid-Level', notes:'Adobe Premiere, After Effects, DaVinci' },
-      { name:'Vikram Singh', email:'vikram@email.com', phone:'9900112233', category:'Full Stack Developer', experience:'Senior', notes:'Node.js, React, MongoDB, AWS' },
-      { name:'Neha Gupta', email:'neha@email.com', phone:'8811223344', category:'Content Writer / Copywriter', experience:'Fresher', notes:'Blog writing, SEO content, social media' },
-      { name:'Karan Joshi', email:'karan@email.com', phone:'9922334455', category:'Data Analyst', experience:'Mid-Level', notes:'Python, Power BI, SQL, Tableau' },
-      { name:'Divya Nair', email:'divya@email.com', phone:'9833221100', category:'Graphic Designer', experience:'Junior', notes:'Adobe Illustrator, Photoshop, Canva' },
-      { name:'Rohit Mishra', email:'rohit@email.com', phone:'8899001122', category:'SEO Specialist', experience:'Mid-Level', notes:'Technical SEO, keyword research, backlinks' },
-      { name:'Anjali Sharma', email:'anjali@email.com', phone:'9988776655', category:'HR & Recruitment', experience:'Senior', notes:'Talent acquisition, HRIS, payroll' },
+      { name:'Rahul Sharma', email:'rahul@email.com', phone:'9876543210', location:'Jaipur', category:'Frontend Developer', experience:'Mid-Level', notes:'Strong React & Vue skills, 4 years experience' },
+      { name:'Priya Mehta', email:'priya@email.com', phone:'9123456780', location:'Mumbai', category:'UI/UX Designer', experience:'Senior', notes:'Figma expert, design systems, 6yr exp' },
+      { name:'Arjun Patel', email:'arjun@email.com', phone:'8800123456', location:'Delhi', category:'Digital Marketer', experience:'Junior', notes:'Google Ads certified, Meta Ads' },
+      { name:'Sneha Reddy', email:'sneha@email.com', phone:'7700998877', location:'Hyderabad', category:'Video Editor', experience:'Mid-Level', notes:'Adobe Premiere, After Effects, DaVinci' },
+      { name:'Vikram Singh', email:'vikram@email.com', phone:'9900112233', location:'Bangalore', category:'Full Stack Developer', experience:'Senior', notes:'Node.js, React, MongoDB, AWS' },
+      { name:'Neha Gupta', email:'neha@email.com', phone:'8811223344', location:'Jaipur', category:'Content Writer / Copywriter', experience:'Fresher', notes:'Blog writing, SEO content, social media' },
+      { name:'Karan Joshi', email:'karan@email.com', phone:'9922334455', location:'Pune', category:'Data Analyst', experience:'Mid-Level', notes:'Python, Power BI, SQL, Tableau' },
+      { name:'Divya Nair', email:'divya@email.com', phone:'9833221100', location:'Chennai', category:'Graphic Designer', experience:'Junior', notes:'Adobe Illustrator, Photoshop, Canva' },
+      { name:'Rohit Mishra', email:'rohit@email.com', phone:'8899001122', location:'Delhi', category:'SEO Specialist', experience:'Mid-Level', notes:'Technical SEO, keyword research, backlinks' },
+      { name:'Anjali Sharma', email:'anjali@email.com', phone:'9988776655', location:'Mumbai', category:'HR & Recruitment', experience:'Senior', notes:'Talent acquisition, HRIS, payroll' },
     ];
     const resumes: Resume[] = samples.map((s, i) => ({
       id: generateId(), ...s,
@@ -203,8 +211,8 @@ export function getResumesByWeek(weeks: number): number[] {
 
 export function exportCSV() {
   const resumes = getResumes();
-  const headers = ['ID', 'Name', 'Email', 'Phone', 'Category', 'Experience', 'Notes', 'Filename', 'Upload Date'];
-  const rows = resumes.map(r => [r.id, r.name, r.email, r.phone, r.category, r.experience, (r.notes || '').replace(/,/g, ';'), r.filename, formatDate(r.uploadDate)]);
+  const headers = ['ID', 'Name', 'Email', 'Phone', 'Location', 'Category', 'Experience', 'Notes', 'Filename', 'Upload Date'];
+  const rows = resumes.map(r => [r.id, r.name, r.email, r.phone, r.location || '', r.category, r.experience, (r.notes || '').replace(/,/g, ';'), r.filename, formatDate(r.uploadDate)]);
   const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
