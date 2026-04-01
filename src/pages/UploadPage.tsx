@@ -141,7 +141,7 @@ export default function UploadPage() {
   return (
     <>
       <PageHeader title="Upload Resume" subtitle="Add new resumes to the database" />
-      <div className="p-7 flex-1">
+      <div className="p-4 md:p-7 flex-1">
         {/* Drop zone */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -149,7 +149,7 @@ export default function UploadPage() {
           onDragOver={e => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all relative ${
+          className={`border-2 border-dashed rounded-2xl p-6 md:p-12 text-center cursor-pointer transition-all relative ${
             dragging ? 'border-primary bg-accent-dim' : 'border-border hover:border-primary'
           }`}
         >

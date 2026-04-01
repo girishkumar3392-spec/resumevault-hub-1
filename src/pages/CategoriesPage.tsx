@@ -53,7 +53,7 @@ export default function CategoriesPage() {
   return (
     <>
       <PageHeader title="Categories" subtitle={`${categories.length} categories, ${activeCount} active`} />
-      <div className="p-7 flex-1">
+      <div className="p-4 md:p-7 flex-1">
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           {[
