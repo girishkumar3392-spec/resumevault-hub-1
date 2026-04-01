@@ -105,6 +105,7 @@ export default function UploadPage() {
             name: entrySnapshot.name,
             email: entrySnapshot.email,
             phone: entrySnapshot.phone,
+            location: entrySnapshot.location,
             category: entrySnapshot.category,
             experience: entrySnapshot.experience,
             notes: entrySnapshot.notes,
