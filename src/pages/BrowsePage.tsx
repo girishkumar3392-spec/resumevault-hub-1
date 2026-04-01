@@ -59,8 +59,8 @@ export default function BrowsePage() {
           <div className="w-60 shrink-0 bg-card border border-border rounded-lg p-4 sticky top-20">
             <div className="text-[13px] font-bold text-foreground mb-3.5 flex items-center justify-between">
               Filters
-              {(catFilter.length > 0 || expFilter.length > 0) && (
-                <button onClick={() => { setCatFilter([]); setExpFilter([]); }} className="text-[11px] text-primary cursor-pointer hover:underline">Clear</button>
+              {(catFilter.length > 0 || expFilter.length > 0 || locFilter.length > 0) && (
+                <button onClick={() => { setCatFilter([]); setExpFilter([]); setLocFilter([]); }} className="text-[11px] text-primary cursor-pointer hover:underline">Clear</button>
               )}
             </div>
 
