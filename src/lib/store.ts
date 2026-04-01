@@ -53,6 +53,13 @@ const DEFAULT_CATEGORIES = [
 export function initDefaults() {
   if (!localStorage.getItem('rv_admin_pwd')) localStorage.setItem('rv_admin_pwd', btoa('Admin@123'));
   if (!localStorage.getItem('rv_admin_user')) localStorage.setItem('rv_admin_user', 'admin');
+  // Migrate: add location field to existing resumes
+  try {
+    const existing = JSON.parse(localStorage.getItem('rv_resumes') || '[]');
+    if (existing.length > 0 && existing[0].location === undefined) {
+      localStorage.removeItem('rv_resumes');
+    }
+  } catch {}
   if (!localStorage.getItem('rv_settings')) {
     localStorage.setItem('rv_settings', JSON.stringify({ companyName: 'ResumeVault', tagline: 'Smart Hiring Intelligence', logoData: null }));
   }
