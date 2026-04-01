@@ -77,6 +77,24 @@ export default function BrowsePage() {
               ))}
             </div>
 
+            <div className="mb-4">
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Location</div>
+              <div className="max-h-48 overflow-y-auto space-y-0.5">
+                {allLocations.map(loc => {
+                  const count = allResumes.filter(r => r.location === loc).length;
+                  return (
+                    <label key={loc} className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer text-[13px] text-muted-foreground hover:bg-hover hover:text-foreground transition-all">
+                      <input type="checkbox" checked={locFilter.includes(loc)} onChange={() => toggleFilter(locFilter, loc, setLocFilter)} className="accent-primary w-3.5 h-3.5" />
+                      <MapPin className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{loc}</span>
+                      <span className="ml-auto text-[11px] text-muted-foreground bg-hover px-1.5 py-0.5 rounded-full shrink-0">{count}</span>
+                    </label>
+                  );
+                })}
+                {allLocations.length === 0 && <p className="text-[11px] text-muted-foreground py-1">No locations yet</p>}
+              </div>
+            </div>
+
             <div>
               <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Category</div>
               <div className="max-h-60 overflow-y-auto space-y-0.5">
