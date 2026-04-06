@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Upload, FolderSearch, Tags, BarChart3, Settings, LogOut, X } from "lucide-react";
-import { logout, getSettings } from "@/lib/store";
+import { logout } from "@/lib/store";
+import { useSettings } from "@/hooks/use-data";
 import { useNavigate } from "react-router-dom";
 
 const navItems = [
@@ -24,7 +25,7 @@ interface Props {
 export default function AppSidebar({ open, onClose }: Props) {
   const location = useLocation();
   const navigate = useNavigate();
-  const settings = getSettings();
+  const { data: settings } = useSettings();
 
   const handleLogout = () => {
     logout();
@@ -37,13 +38,12 @@ export default function AppSidebar({ open, onClose }: Props) {
 
   return (
     <aside className={`w-60 min-h-screen bg-sidebar border-r border-sidebar-border flex flex-col fixed left-0 top-0 bottom-0 z-50 transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
-      {/* Header */}
       <div className="p-5 border-b border-sidebar-border flex items-center gap-3">
         <div className="w-9 h-9 bg-gradient-to-br from-primary to-accent rounded-[10px] flex items-center justify-center font-display font-extrabold text-sm text-primary-foreground shrink-0">
           RV
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[15px] font-display font-bold text-foreground leading-tight truncate">{settings.companyName || 'ResumeVault'}</div>
+          <div className="text-[15px] font-display font-bold text-foreground leading-tight truncate">{settings?.companyName || 'ResumeVault'}</div>
           <div className="text-[10px] text-muted-foreground">Smart Hiring Intelligence</div>
         </div>
         <button onClick={onClose} className="md:hidden w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-hover flex items-center justify-center cursor-pointer">
@@ -51,7 +51,6 @@ export default function AppSidebar({ open, onClose }: Props) {
         </button>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 py-3 px-2.5 overflow-y-auto">
         {navItems.map(section => (
           <div key={section.label}>
@@ -80,7 +79,6 @@ export default function AppSidebar({ open, onClose }: Props) {
         ))}
       </nav>
 
-      {/* Footer */}
       <div className="p-3.5 border-t border-sidebar-border">
         <div className="flex items-center gap-2.5 p-2 rounded-md">
           <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center font-bold text-xs text-primary-foreground shrink-0">

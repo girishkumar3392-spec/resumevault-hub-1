@@ -1,7 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Upload, FileText, X, Check, Eye } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import { addResume, getCategories } from "@/lib/store";
+import { addResume } from "@/lib/store";
+import { useCategories } from "@/hooks/use-data";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -24,14 +26,15 @@ export default function UploadPage() {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [dragging, setDragging] = useState(false);
   const [previewFile, setPreviewFile] = useState<string | null>(null);
-  const categories = getCategories().filter(c => c.active);
+  const { data: allCategories = [] } = useCategories();
+  const categories = allCategories.filter(c => c.active);
   const intervalsRef = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map());
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     return () => {
       intervalsRef.current.forEach(interval => clearInterval(interval));
       intervalsRef.current.clear();
-      // Revoke preview URLs
       files.forEach(f => { if (f.previewUrl) URL.revokeObjectURL(f.previewUrl); });
     };
   }, []);
@@ -82,14 +85,10 @@ export default function UploadPage() {
       return;
     }
 
-    // Mark as uploading
     updateFile(idx, { uploading: true, progress: 0 });
-
-    // Keep a reference to the File object and entry data
     const fileRef = entry.file;
     const entrySnapshot = { ...entry };
 
-    // Simulate progress
     let progress = 0;
     const interval = setInterval(() => {
       progress += Math.random() * 25 + 5;
@@ -98,22 +97,27 @@ export default function UploadPage() {
         clearInterval(interval);
         intervalsRef.current.delete(idx);
 
-        // Read the file - using the File reference directly, NOT from state
         const reader = new FileReader();
-        reader.onload = () => {
-          addResume({
-            name: entrySnapshot.name,
-            email: entrySnapshot.email,
-            phone: entrySnapshot.phone,
-            location: entrySnapshot.location,
-            category: entrySnapshot.category,
-            experience: entrySnapshot.experience,
-            notes: entrySnapshot.notes,
-            filename: fileRef.name,
-            fileData: reader.result as string,
-          });
-          updateFile(idx, { progress: 100, done: true, uploading: false });
-          toast.success(`${entrySnapshot.name} uploaded successfully!`);
+        reader.onload = async () => {
+          try {
+            await addResume({
+              name: entrySnapshot.name,
+              email: entrySnapshot.email,
+              phone: entrySnapshot.phone,
+              location: entrySnapshot.location,
+              category: entrySnapshot.category,
+              experience: entrySnapshot.experience,
+              notes: entrySnapshot.notes,
+              filename: fileRef.name,
+              fileData: reader.result as string,
+            });
+            updateFile(idx, { progress: 100, done: true, uploading: false });
+            queryClient.invalidateQueries({ queryKey: ['resumes'] });
+            toast.success(`${entrySnapshot.name} uploaded successfully!`);
+          } catch (err) {
+            updateFile(idx, { uploading: false, progress: 0 });
+            toast.error(`Failed to upload ${entrySnapshot.name}`);
+          }
         };
         reader.onerror = () => {
           updateFile(idx, { uploading: false, progress: 0 });
@@ -142,44 +146,29 @@ export default function UploadPage() {
     <>
       <PageHeader title="Upload Resume" subtitle="Add new resumes to the database" />
       <div className="p-4 md:p-7 flex-1">
-        {/* Drop zone */}
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
           onDragOver={e => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-2xl p-6 md:p-12 text-center cursor-pointer transition-all relative ${
-            dragging ? 'border-primary bg-accent-dim' : 'border-border hover:border-primary'
-          }`}
+          className={`border-2 border-dashed rounded-2xl p-6 md:p-12 text-center cursor-pointer transition-all relative ${dragging ? 'border-primary bg-accent-dim' : 'border-border hover:border-primary'}`}
         >
-          <input
-            type="file"
-            multiple
-            accept=".pdf,.doc,.docx,.rtf"
+          <input type="file" multiple accept=".pdf,.doc,.docx,.rtf"
             onChange={e => { if (e.target.files && e.target.files.length > 0) { handleFiles(e.target.files); e.target.value = ''; } }}
-            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-          />
+            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
           <div className="w-12 h-12 bg-accent-dim rounded-xl flex items-center justify-center mx-auto mb-3.5">
             <Upload className="w-6 h-6 text-primary" />
           </div>
-          <div className="text-[15px] font-semibold text-foreground mb-1.5">
-            Drop files here or click to browse
-          </div>
-          <div className="text-[13px] text-muted-foreground">
-            PDF, DOC, DOCX, RTF — Max 10MB each
-          </div>
+          <div className="text-[15px] font-semibold text-foreground mb-1.5">Drop files here or click to browse</div>
+          <div className="text-[13px] text-muted-foreground">PDF, DOC, DOCX, RTF — Max 10MB each</div>
         </motion.div>
 
-        {/* File cards */}
         {files.length > 0 && (
           <div className="mt-6 space-y-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold text-foreground">
                 {files.length} file{files.length > 1 ? 's' : ''} selected
-                {files.filter(f => f.done).length > 0 && (
-                  <span className="text-green ml-2">({files.filter(f => f.done).length} uploaded)</span>
-                )}
+                {files.filter(f => f.done).length > 0 && <span className="text-green ml-2">({files.filter(f => f.done).length} uploaded)</span>}
               </span>
               {pendingCount > 0 && (
                 <button onClick={uploadAll} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-[13.5px] font-medium hover:brightness-110 transition-all cursor-pointer">
@@ -189,12 +178,7 @@ export default function UploadPage() {
             </div>
 
             {files.map((entry, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-card border border-border rounded-lg p-4"
-              >
+              <motion.div key={i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-9 h-9 bg-accent-dim rounded-lg flex items-center justify-center shrink-0">
                     {entry.done ? <Check className="w-[18px] h-[18px] text-green" /> : <FileText className="w-[18px] h-[18px] text-primary" />}
@@ -205,11 +189,8 @@ export default function UploadPage() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     {entry.previewUrl && (
-                      <button
-                        onClick={() => setPreviewFile(previewFile === entry.previewUrl ? null : entry.previewUrl)}
-                        className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-primary hover:border-primary/30 transition-all cursor-pointer"
-                        title="Preview PDF"
-                      >
+                      <button onClick={() => setPreviewFile(previewFile === entry.previewUrl ? null : entry.previewUrl)}
+                        className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-primary hover:border-primary/30 transition-all cursor-pointer" title="Preview PDF">
                         <Eye className="w-3.5 h-3.5" />
                       </button>
                     )}
@@ -218,20 +199,13 @@ export default function UploadPage() {
                         <X className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    {entry.uploading && (
-                      <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                    )}
+                    {entry.uploading && <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />}
                   </div>
                 </div>
 
-                {/* Live PDF Preview */}
                 {previewFile === entry.previewUrl && entry.previewUrl && (
                   <div className="mb-3 rounded-lg overflow-hidden border border-border bg-background">
-                    <iframe
-                      src={entry.previewUrl}
-                      className="w-full h-[400px] bg-white"
-                      title={`Preview: ${entry.file.name}`}
-                    />
+                    <iframe src={entry.previewUrl} className="w-full h-[400px] bg-white" title={`Preview: ${entry.file.name}`} />
                   </div>
                 )}
 
@@ -280,17 +254,14 @@ export default function UploadPage() {
                 ) : entry.uploading ? (
                   <div className="mt-1">
                     <div className="flex justify-between text-[12px] text-muted-foreground mb-1.5">
-                      <span>Uploading...</span>
-                      <span>{Math.round(entry.progress)}%</span>
+                      <span>Uploading...</span><span>{Math.round(entry.progress)}%</span>
                     </div>
                     <div className="h-1.5 bg-hover rounded-full overflow-hidden">
                       <div className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-300" style={{ width: entry.progress + '%' }} />
                     </div>
                   </div>
                 ) : (
-                  <div className="text-[13px] text-green flex items-center gap-1.5">
-                    <Check className="w-4 h-4" /> Uploaded successfully
-                  </div>
+                  <div className="text-[13px] text-green flex items-center gap-1.5"><Check className="w-4 h-4" /> Uploaded successfully</div>
                 )}
               </motion.div>
             ))}

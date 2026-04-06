@@ -1,16 +1,16 @@
 import { useEffect, useRef } from "react";
 import { Upload, Users, Tags, TrendingUp } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import { getResumes, getCategories, getThisWeekCount, getMostPopularCategory, formatDate, categoryColor, categoryInitials } from "@/lib/store";
+import { formatDate, categoryColor, categoryInitials, getThisWeekCount, getMostPopularCategory } from "@/lib/store";
+import { useResumes, useCategories } from "@/hooks/use-data";
 import { motion } from "framer-motion";
 
 function KpiCard({ label, value, sub, icon: Icon, delay }: { label: string; value: number | string; sub: string; icon: React.ElementType; delay: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (ref.current && typeof value === 'number') {
-      let start = 0;
-      const dur = 800;
       let startTime: number;
+      const dur = 800;
       const step = (ts: number) => {
         if (!startTime) startTime = ts;
         const p = Math.min((ts - startTime) / dur, 1);
@@ -23,12 +23,8 @@ function KpiCard({ label, value, sub, icon: Icon, delay }: { label: string; valu
   }, [value]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: delay * 0.05 }}
-      className="bg-card border border-border rounded-lg p-5 relative overflow-hidden hover:border-primary/50 transition-all group"
-    >
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: delay * 0.05 }}
+      className="bg-card border border-border rounded-lg p-5 relative overflow-hidden hover:border-primary/50 transition-all group">
       <div className="absolute top-0 right-0 w-20 h-20 bg-accent-dim rounded-full translate-x-[30px] -translate-y-[30px]" />
       <div className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg bg-accent-dim">
         <Icon className="w-4 h-4 text-primary" />
@@ -43,13 +39,23 @@ function KpiCard({ label, value, sub, icon: Icon, delay }: { label: string; valu
 }
 
 export default function DashboardPage() {
-  const resumes = getResumes();
-  const categories = getCategories();
-  const thisWeek = getThisWeekCount();
-  const popular = getMostPopularCategory();
+  const { data: resumes = [], isLoading: loadingResumes } = useResumes();
+  const { data: categories = [], isLoading: loadingCategories } = useCategories();
 
+  if (loadingResumes || loadingCategories) {
+    return (
+      <>
+        <PageHeader title="Dashboard" subtitle="Overview of your resume database" />
+        <div className="p-4 md:p-7 flex-1 flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+        </div>
+      </>
+    );
+  }
+
+  const thisWeek = getThisWeekCount(resumes);
+  const popular = getMostPopularCategory(resumes, categories);
   const recent = resumes.slice(0, 8);
-
   const expCounts = { Fresher: 0, Junior: 0, 'Mid-Level': 0, Senior: 0 };
   resumes.forEach(r => { if (r.experience in expCounts) expCounts[r.experience as keyof typeof expCounts]++; });
 
@@ -57,7 +63,6 @@ export default function DashboardPage() {
     <>
       <PageHeader title="Dashboard" subtitle="Overview of your resume database" />
       <div className="p-4 md:p-7 flex-1">
-        {/* KPI */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <KpiCard label="Total Resumes" value={resumes.length} sub="All uploaded resumes" icon={Users} delay={0} />
           <KpiCard label="Categories" value={categories.filter(c => c.active).length} sub={`of ${categories.length} total`} icon={Tags} delay={1} />
@@ -66,7 +71,6 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Recent Resumes */}
           <div className="lg:col-span-2 bg-card border border-border rounded-lg p-5">
             <h3 className="text-sm font-display font-bold text-foreground mb-4">Recent Uploads</h3>
             <div className="overflow-x-auto">
@@ -84,14 +88,14 @@ export default function DashboardPage() {
                     <tr key={r.id} className="border-b border-border hover:bg-hover transition-colors">
                       <td className="py-3 px-3.5 text-[13.5px]">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0" style={{ background: categoryColor(r.category) }}>
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0" style={{ background: categoryColor(r.category, categories) }}>
                             {categoryInitials(r.category)}
                           </div>
                           <span className="font-medium">{r.name}</span>
                         </div>
                       </td>
                       <td className="py-3 px-3.5">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11.5px] font-medium" style={{ background: categoryColor(r.category) + '26', color: categoryColor(r.category) }}>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11.5px] font-medium" style={{ background: categoryColor(r.category, categories) + '26', color: categoryColor(r.category, categories) }}>
                           {r.category}
                         </span>
                       </td>
@@ -104,7 +108,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Experience Breakdown */}
           <div className="bg-card border border-border rounded-lg p-5">
             <h3 className="text-sm font-display font-bold text-foreground mb-4">Experience Breakdown</h3>
             <div className="space-y-4">

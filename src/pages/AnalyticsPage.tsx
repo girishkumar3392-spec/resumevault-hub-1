@@ -1,27 +1,26 @@
 import PageHeader from "@/components/PageHeader";
-import { getResumes, getCategories, getThisWeekCount, getMostPopularCategory } from "@/lib/store";
+import { getThisWeekCount, getMostPopularCategory } from "@/lib/store";
+import { useResumes, useCategories } from "@/hooks/use-data";
 import { motion } from "framer-motion";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 const COLORS = ['#4F8EF7', '#7C5CFC', '#2DD4BF', '#F59E0B', '#EF4444', '#22C55E', '#EC4899', '#8B5CF6'];
 
 export default function AnalyticsPage() {
-  const resumes = getResumes();
-  const categories = getCategories().filter(c => c.active);
+  const { data: resumes = [] } = useResumes();
+  const { data: allCategories = [] } = useCategories();
+  const categories = allCategories.filter(c => c.active);
 
-  // Category distribution
   const catData = categories
     .map(c => ({ name: c.name.length > 15 ? c.name.substring(0, 15) + '…' : c.name, value: resumes.filter(r => r.category === c.name).length, color: c.color }))
     .filter(d => d.value > 0)
     .sort((a, b) => b.value - a.value)
     .slice(0, 10);
 
-  // Experience distribution
   const expData = ['Fresher', 'Junior', 'Mid-Level', 'Senior'].map(e => ({
     name: e, value: resumes.filter(r => r.experience === e).length
   }));
 
-  // Weekly trend (last 8 weeks)
   const weeklyData = Array.from({ length: 8 }, (_, i) => {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -36,24 +35,18 @@ export default function AnalyticsPage() {
   const stats = [
     { label: 'Total Resumes', value: resumes.length },
     { label: 'Categories', value: categories.length },
-    { label: 'This Week', value: getThisWeekCount() },
-    { label: 'Top Category', value: getMostPopularCategory() },
+    { label: 'This Week', value: getThisWeekCount(resumes) },
+    { label: 'Top Category', value: getMostPopularCategory(resumes, allCategories) },
   ];
 
   return (
     <>
       <PageHeader title="Analytics" subtitle="Insights & statistics" />
       <div className="p-4 md:p-7 flex-1">
-        {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           {stats.map((s, i) => (
-            <motion.div
-              key={s.label}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="bg-card border border-border rounded-md py-3.5 px-4 text-center"
-            >
+            <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+              className="bg-card border border-border rounded-md py-3.5 px-4 text-center">
               <div className="text-2xl font-display font-extrabold text-foreground">{s.value}</div>
               <div className="text-[11px] text-muted-foreground mt-0.5">{s.label}</div>
             </motion.div>
@@ -61,7 +54,6 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          {/* Category Chart */}
           <div className="bg-card border border-border rounded-lg p-5">
             <h3 className="text-sm font-display font-bold text-foreground mb-4">Resumes by Category</h3>
             <div className="h-[260px]">
@@ -78,7 +70,6 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* Experience Pie */}
           <div className="bg-card border border-border rounded-lg p-5">
             <h3 className="text-sm font-display font-bold text-foreground mb-4">Experience Distribution</h3>
             <div className="h-[260px]">
@@ -94,7 +85,6 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Weekly Trend */}
         <div className="bg-card border border-border rounded-lg p-5">
           <h3 className="text-sm font-display font-bold text-foreground mb-4">Weekly Upload Trend</h3>
           <div className="h-[220px]">
