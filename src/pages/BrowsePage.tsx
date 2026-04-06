@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { Search, Eye, Trash2, Download, FileText, X, MapPin, SlidersHorizontal } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import { getResumes, getCategories, deleteResume, formatDate, categoryColor, categoryInitials, exportCSV } from "@/lib/store";
+import { formatDate, categoryColor, categoryInitials, exportCSV } from "@/lib/store";
+import { useResumes, useCategories, useDeleteResume } from "@/hooks/use-data";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -11,11 +12,12 @@ export default function BrowsePage() {
   const [expFilter, setExpFilter] = useState<string[]>([]);
   const [locFilter, setLocFilter] = useState<string[]>([]);
   const [viewResume, setViewResume] = useState<string | null>(null);
-  const [, setTick] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
 
-  const categories = getCategories().filter(c => c.active);
-  const allResumes = getResumes();
+  const { data: allResumes = [] } = useResumes();
+  const { data: allCategories = [] } = useCategories();
+  const categories = allCategories.filter(c => c.active);
+  const deleteMutation = useDeleteResume();
 
   const allLocations = useMemo(() => {
     const locs = allResumes.map(r => r.location || '').filter(Boolean);
@@ -38,10 +40,10 @@ export default function BrowsePage() {
 
   const handleDelete = (id: string, name: string) => {
     if (confirm(`Delete resume for "${name}"?`)) {
-      deleteResume(id);
-      setViewResume(null);
-      setTick(t => t + 1);
-      toast.success('Resume deleted');
+      deleteMutation.mutate(id, {
+        onSuccess: () => { setViewResume(null); toast.success('Resume deleted'); },
+        onError: () => toast.error('Failed to delete resume'),
+      });
     }
   };
 
@@ -50,22 +52,18 @@ export default function BrowsePage() {
   return (
     <>
       <PageHeader title="Browse Resumes" subtitle={`${allResumes.length} resumes in database`}>
-        <button onClick={exportCSV} className="inline-flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-md text-[12px] md:text-[13px] font-medium text-foreground hover:border-primary/30 transition-all cursor-pointer">
+        <button onClick={() => exportCSV(allResumes)} className="inline-flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-md text-[12px] md:text-[13px] font-medium text-foreground hover:border-primary/30 transition-all cursor-pointer">
           <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Export CSV</span>
         </button>
       </PageHeader>
       <div className="p-4 md:p-7 flex-1">
         <div className="flex flex-col md:flex-row gap-4 md:gap-5 items-start">
-          {/* Mobile filter toggle */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="md:hidden w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 bg-card border border-border rounded-lg text-[13px] font-medium text-foreground cursor-pointer"
-          >
+          <button onClick={() => setShowFilters(!showFilters)}
+            className="md:hidden w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 bg-card border border-border rounded-lg text-[13px] font-medium text-foreground cursor-pointer">
             <SlidersHorizontal className="w-4 h-4" />
             Filters {(catFilter.length + expFilter.length + locFilter.length) > 0 && `(${catFilter.length + expFilter.length + locFilter.length})`}
           </button>
 
-          {/* Filter sidebar */}
           <div className={`w-full md:w-60 shrink-0 bg-card border border-border rounded-lg p-4 md:sticky md:top-20 ${showFilters ? 'block' : 'hidden md:block'}`}>
             <div className="text-[13px] font-bold text-foreground mb-3.5 flex items-center justify-between">
               Filters
@@ -80,9 +78,7 @@ export default function BrowsePage() {
                 <label key={e} className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer text-[13px] text-muted-foreground hover:bg-hover hover:text-foreground transition-all">
                   <input type="checkbox" checked={expFilter.includes(e)} onChange={() => toggleFilter(expFilter, e, setExpFilter)} className="accent-primary w-3.5 h-3.5" />
                   {e}
-                  <span className="ml-auto text-[11px] text-muted-foreground bg-hover px-1.5 py-0.5 rounded-full">
-                    {allResumes.filter(r => r.experience === e).length}
-                  </span>
+                  <span className="ml-auto text-[11px] text-muted-foreground bg-hover px-1.5 py-0.5 rounded-full">{allResumes.filter(r => r.experience === e).length}</span>
                 </label>
               ))}
             </div>
@@ -90,17 +86,14 @@ export default function BrowsePage() {
             <div className="mb-4">
               <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Location</div>
               <div className="max-h-48 overflow-y-auto space-y-0.5">
-                {allLocations.map(loc => {
-                  const count = allResumes.filter(r => r.location === loc).length;
-                  return (
-                    <label key={loc} className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer text-[13px] text-muted-foreground hover:bg-hover hover:text-foreground transition-all">
-                      <input type="checkbox" checked={locFilter.includes(loc)} onChange={() => toggleFilter(locFilter, loc, setLocFilter)} className="accent-primary w-3.5 h-3.5" />
-                      <MapPin className="w-3 h-3 shrink-0" />
-                      <span className="truncate">{loc}</span>
-                      <span className="ml-auto text-[11px] text-muted-foreground bg-hover px-1.5 py-0.5 rounded-full shrink-0">{count}</span>
-                    </label>
-                  );
-                })}
+                {allLocations.map(loc => (
+                  <label key={loc} className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer text-[13px] text-muted-foreground hover:bg-hover hover:text-foreground transition-all">
+                    <input type="checkbox" checked={locFilter.includes(loc)} onChange={() => toggleFilter(locFilter, loc, setLocFilter)} className="accent-primary w-3.5 h-3.5" />
+                    <MapPin className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{loc}</span>
+                    <span className="ml-auto text-[11px] text-muted-foreground bg-hover px-1.5 py-0.5 rounded-full shrink-0">{allResumes.filter(r => r.location === loc).length}</span>
+                  </label>
+                ))}
                 {allLocations.length === 0 && <p className="text-[11px] text-muted-foreground py-1">No locations yet</p>}
               </div>
             </div>
@@ -108,21 +101,17 @@ export default function BrowsePage() {
             <div>
               <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Category</div>
               <div className="max-h-60 overflow-y-auto space-y-0.5">
-                {categories.map(c => {
-                  const count = allResumes.filter(r => r.category === c.name).length;
-                  return (
-                    <label key={c.id} className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer text-[13px] text-muted-foreground hover:bg-hover hover:text-foreground transition-all">
-                      <input type="checkbox" checked={catFilter.includes(c.name)} onChange={() => toggleFilter(catFilter, c.name, setCatFilter)} className="accent-primary w-3.5 h-3.5" />
-                      <span className="truncate">{c.name}</span>
-                      <span className="ml-auto text-[11px] text-muted-foreground bg-hover px-1.5 py-0.5 rounded-full shrink-0">{count}</span>
-                    </label>
-                  );
-                })}
+                {categories.map(c => (
+                  <label key={c.id} className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer text-[13px] text-muted-foreground hover:bg-hover hover:text-foreground transition-all">
+                    <input type="checkbox" checked={catFilter.includes(c.name)} onChange={() => toggleFilter(catFilter, c.name, setCatFilter)} className="accent-primary w-3.5 h-3.5" />
+                    <span className="truncate">{c.name}</span>
+                    <span className="ml-auto text-[11px] text-muted-foreground bg-hover px-1.5 py-0.5 rounded-full shrink-0">{allResumes.filter(r => r.category === c.name).length}</span>
+                  </label>
+                ))}
               </div>
             </div>
           </div>
 
-          {/* Results */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
               <div className="relative flex-1 max-w-xs">
@@ -137,16 +126,10 @@ export default function BrowsePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               <AnimatePresence>
                 {filtered.map(r => (
-                  <motion.div
-                    key={r.id}
-                    layout
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-card border border-border rounded-lg p-4 hover:border-primary/20 hover:-translate-y-0.5 transition-all hover:shadow-lg"
-                  >
+                  <motion.div key={r.id} layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-card border border-border rounded-lg p-4 hover:border-primary/20 hover:-translate-y-0.5 transition-all hover:shadow-lg">
                     <div className="flex items-start gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-[10px] flex items-center justify-center font-display font-bold text-[15px] text-primary-foreground shrink-0" style={{ background: categoryColor(r.category) }}>
+                      <div className="w-10 h-10 rounded-[10px] flex items-center justify-center font-display font-bold text-[15px] text-primary-foreground shrink-0" style={{ background: categoryColor(r.category, allCategories) }}>
                         {categoryInitials(r.category)}
                       </div>
                       <div className="min-w-0">
@@ -160,12 +143,10 @@ export default function BrowsePage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1.5 mb-3">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11.5px] font-medium" style={{ background: categoryColor(r.category) + '26', color: categoryColor(r.category) }}>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11.5px] font-medium" style={{ background: categoryColor(r.category, allCategories) + '26', color: categoryColor(r.category, allCategories) }}>
                         {r.category}
                       </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11.5px] font-medium bg-accent-dim text-primary">
-                        {r.experience}
-                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11.5px] font-medium bg-accent-dim text-primary">{r.experience}</span>
                     </div>
                     <div className="flex items-center justify-between pt-2.5 border-t border-border">
                       <span className="text-[11.5px] text-muted-foreground">{formatDate(r.uploadDate)}</span>
@@ -196,17 +177,11 @@ export default function BrowsePage() {
         </div>
       </div>
 
-      {/* Detail Drawer */}
       {detail && (
         <>
           <div className="fixed inset-0 bg-black/60 z-[200] backdrop-blur-sm" onClick={() => setViewResume(null)} />
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25 }}
-            className="fixed right-0 top-0 bottom-0 w-[520px] max-w-[95vw] bg-secondary border-l border-border z-[201] flex flex-col"
-          >
+          <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25 }}
+            className="fixed right-0 top-0 bottom-0 w-[520px] max-w-[95vw] bg-secondary border-l border-border z-[201] flex flex-col">
             <div className="px-6 py-5 border-b border-border flex items-center justify-between shrink-0">
               <h3 className="text-base font-display font-bold">Resume Details</h3>
               <button onClick={() => setViewResume(null)} className="w-7 h-7 rounded-md bg-transparent text-muted-foreground cursor-pointer hover:bg-hover hover:text-foreground transition-all flex items-center justify-center border-none">
@@ -214,18 +189,11 @@ export default function BrowsePage() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-6">
-              {/* Info */}
               <div className="space-y-3.5 mb-6">
                 {[
-                  ['Name', detail.name],
-                  ['Email', detail.email || '—'],
-                  ['Phone', detail.phone || '—'],
-                  ['Location', detail.location || '—'],
-                  ['Category', detail.category],
-                  ['Experience', detail.experience],
-                  ['Notes', detail.notes || '—'],
-                  ['Filename', detail.filename],
-                  ['Uploaded', formatDate(detail.uploadDate)],
+                  ['Name', detail.name], ['Email', detail.email || '—'], ['Phone', detail.phone || '—'],
+                  ['Location', detail.location || '—'], ['Category', detail.category], ['Experience', detail.experience],
+                  ['Notes', detail.notes || '—'], ['Filename', detail.filename], ['Uploaded', formatDate(detail.uploadDate)],
                 ].map(([label, value]) => (
                   <div key={label} className="flex items-start gap-2.5 pb-3.5 border-b border-border last:border-0">
                     <span className="text-xs text-muted-foreground font-medium w-28 shrink-0 pt-0.5">{label}</span>
@@ -233,17 +201,11 @@ export default function BrowsePage() {
                   </div>
                 ))}
               </div>
-
-              {/* Resume Preview */}
               <div>
                 <h4 className="text-sm font-display font-bold text-foreground mb-3">Resume Preview</h4>
                 {detail.fileData ? (
                   detail.fileData.startsWith('data:application/pdf') ? (
-                    <iframe
-                      src={detail.fileData}
-                      className="w-full h-[500px] rounded-lg border border-border bg-white"
-                      title={`Preview: ${detail.name}`}
-                    />
+                    <iframe src={detail.fileData} className="w-full h-[500px] rounded-lg border border-border bg-white" title={`Preview: ${detail.name}`} />
                   ) : (
                     <div className="rounded-lg border border-border bg-input p-6 flex flex-col items-center justify-center gap-3 text-center">
                       <FileText className="w-10 h-10 text-muted-foreground" />

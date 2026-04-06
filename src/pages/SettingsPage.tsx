@@ -1,20 +1,24 @@
 import { useState } from "react";
 import { Save, Trash2, Download } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import { getSettings, saveSettings, exportJSON } from "@/lib/store";
+import { exportJSON } from "@/lib/store";
+import { useSettings, useSaveSettings } from "@/hooks/use-data";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
-  const settings = getSettings();
-  const [companyName, setCompanyName] = useState(settings.companyName || 'ResumeVault');
-  const [tagline, setTagline] = useState(settings.tagline || 'Smart Hiring Intelligence');
+  const { data: settings } = useSettings();
+  const saveSettingsMutation = useSaveSettings();
+  const [companyName, setCompanyName] = useState(settings?.companyName || 'ResumeVault');
+  const [tagline, setTagline] = useState(settings?.tagline || 'Smart Hiring Intelligence');
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
 
   const handleSaveGeneral = () => {
-    saveSettings({ companyName, tagline });
-    toast.success('Settings saved');
+    saveSettingsMutation.mutate({ companyName, tagline }, {
+      onSuccess: () => toast.success('Settings saved'),
+      onError: () => toast.error('Failed to save settings'),
+    });
   };
 
   const handleChangePassword = () => {
@@ -29,18 +33,22 @@ export default function SettingsPage() {
   };
 
   const handleReset = () => {
-    if (confirm('This will delete ALL data and reset to defaults. Are you sure?')) {
-      ['rv_resumes', 'rv_categories', 'rv_settings', 'rv_admin_pwd', 'rv_admin_user', 'rv_session'].forEach(k => localStorage.removeItem(k));
-      toast.success('All data reset. Reloading...');
+    if (confirm('This will delete ALL local auth data and reset to defaults. Are you sure?')) {
+      ['rv_admin_pwd', 'rv_admin_user', 'rv_session'].forEach(k => localStorage.removeItem(k));
+      toast.success('Local data reset. Reloading...');
       setTimeout(() => window.location.reload(), 1000);
     }
+  };
+
+  const handleExportJSON = async () => {
+    await exportJSON();
+    toast.success('JSON backup exported');
   };
 
   return (
     <>
       <PageHeader title="Settings" subtitle="Manage your preferences" />
       <div className="p-4 md:p-7 flex-1 max-w-2xl">
-        {/* General */}
         <div className="bg-card border border-border rounded-lg p-6 mb-5">
           <h3 className="text-[15px] font-display font-bold text-foreground mb-1.5">General Settings</h3>
           <p className="text-[13px] text-muted-foreground mb-5 pb-4 border-b border-border">Customize your workspace</p>
@@ -59,7 +67,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Password */}
         <div className="bg-card border border-border rounded-lg p-6 mb-5">
           <h3 className="text-[15px] font-display font-bold text-foreground mb-1.5">Change Password</h3>
           <p className="text-[13px] text-muted-foreground mb-5 pb-4 border-b border-border">Update your admin password</p>
@@ -84,21 +91,19 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Data */}
         <div className="bg-card border border-border rounded-lg p-6 mb-5">
           <h3 className="text-[15px] font-display font-bold text-foreground mb-1.5">Data Management</h3>
           <p className="text-[13px] text-muted-foreground mb-5 pb-4 border-b border-border">Export or backup your data</p>
-          <button onClick={exportJSON} className="inline-flex items-center gap-1.5 px-4 py-2 bg-card border border-border rounded-md text-[13.5px] font-medium text-foreground hover:border-primary/30 transition-all cursor-pointer">
+          <button onClick={handleExportJSON} className="inline-flex items-center gap-1.5 px-4 py-2 bg-card border border-border rounded-md text-[13.5px] font-medium text-foreground hover:border-primary/30 transition-all cursor-pointer">
             <Download className="w-4 h-4" /> Export JSON Backup
           </button>
         </div>
 
-        {/* Danger */}
         <div className="bg-destructive/[0.03] border border-destructive/20 rounded-lg p-6">
           <h3 className="text-[15px] font-display font-bold text-destructive mb-1.5">Danger Zone</h3>
           <p className="text-[13px] text-muted-foreground mb-5 pb-4 border-b border-border">Irreversible actions</p>
           <button onClick={handleReset} className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-dim text-destructive border border-destructive/20 rounded-md text-[13.5px] font-medium hover:bg-destructive/20 transition-all cursor-pointer">
-            <Trash2 className="w-4 h-4" /> Reset All Data
+            <Trash2 className="w-4 h-4" /> Reset Local Auth Data
           </button>
         </div>
       </div>
