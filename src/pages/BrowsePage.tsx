@@ -213,6 +213,8 @@ export default function BrowsePage() {
                 {[
                   ['Name', detail.name], ['Email', detail.email || '—'], ['Phone', detail.phone || '—'],
                   ['Location', detail.location || '—'], ['Category', detail.category], ['Experience', detail.experience],
+                  ['AI Score', detail.aiStatus === 'done' ? `${detail.aiScore}/100` : '—'],
+                  ['AI Status', detail.aiStatus], ['AI Summary', (detail.aiStatus === 'done' && detail.aiSummary) ? detail.aiSummary : '—'],
                   ['Notes', detail.notes || '—'], ['Filename', detail.filename], ['Uploaded', formatDate(detail.uploadDate)],
                 ].map(([label, value]) => (
                   <div key={label} className="flex items-start gap-2.5 pb-3.5 border-b border-border last:border-0">
