@@ -80,7 +80,7 @@ export function useAiPolling() {
         if (r && r.aiStatus === 'done') anyDone = true;
       }
       if (anyDone) qc.invalidateQueries({ queryKey: ['resumes'] });
-    }, 10000);
+    }, 8000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [analyzingIds.join(',')]);
 }

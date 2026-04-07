@@ -1,9 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Upload, FileText, X, Check, Eye } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import { addResume } from "@/lib/store";
-import { useCategories } from "@/hooks/use-data";
-import { useQueryClient } from "@tanstack/react-query";
+import { useCategories, useAddResume } from "@/hooks/use-data";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -29,7 +27,7 @@ export default function UploadPage() {
   const { data: allCategories = [] } = useCategories();
   const categories = allCategories.filter(c => c.active);
   const intervalsRef = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map());
-  const queryClient = useQueryClient();
+  const addResumeMutation = useAddResume();
 
   useEffect(() => {
     return () => {
@@ -100,7 +98,7 @@ export default function UploadPage() {
         const reader = new FileReader();
         reader.onload = async () => {
           try {
-            await addResume({
+            await addResumeMutation.mutateAsync({
               name: entrySnapshot.name,
               email: entrySnapshot.email,
               phone: entrySnapshot.phone,
@@ -112,8 +110,8 @@ export default function UploadPage() {
               fileData: reader.result as string,
             });
             updateFile(idx, { progress: 100, done: true, uploading: false });
-            queryClient.invalidateQueries({ queryKey: ['resumes'] });
             toast.success(`${entrySnapshot.name} uploaded successfully!`);
+            toast.info('🤖 AI analysis in progress...', { duration: 5000 });
           } catch (err) {
             updateFile(idx, { uploading: false, progress: 0 });
             toast.error(`Failed to upload ${entrySnapshot.name}`);
