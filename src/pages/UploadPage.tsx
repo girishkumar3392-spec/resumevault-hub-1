@@ -1,9 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Upload, FileText, X, Check, Eye } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import { addResume } from "@/lib/store";
-import { useCategories } from "@/hooks/use-data";
-import { useQueryClient } from "@tanstack/react-query";
+import { useCategories, useAddResume } from "@/hooks/use-data";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
