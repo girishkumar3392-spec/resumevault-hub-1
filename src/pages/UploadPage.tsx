@@ -98,7 +98,7 @@ export default function UploadPage() {
         const reader = new FileReader();
         reader.onload = async () => {
           try {
-            await addResume({
+            await addResumeMutation.mutateAsync({
               name: entrySnapshot.name,
               email: entrySnapshot.email,
               phone: entrySnapshot.phone,
@@ -110,8 +110,8 @@ export default function UploadPage() {
               fileData: reader.result as string,
             });
             updateFile(idx, { progress: 100, done: true, uploading: false });
-            queryClient.invalidateQueries({ queryKey: ['resumes'] });
             toast.success(`${entrySnapshot.name} uploaded successfully!`);
+            toast.info('🤖 AI analysis in progress...', { duration: 5000 });
           } catch (err) {
             updateFile(idx, { uploading: false, progress: 0 });
             toast.error(`Failed to upload ${entrySnapshot.name}`);
