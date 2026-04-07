@@ -98,6 +98,9 @@ export default function UploadPage() {
         const reader = new FileReader();
         reader.onload = async () => {
           try {
+            // base64 prefix remove karo — sirf pure base64 data chahiye
+            const rawBase64 = (reader.result as string).replace(/^data:.*?;base64,/, '');
+            
             await addResumeMutation.mutateAsync({
               name: entrySnapshot.name,
               email: entrySnapshot.email,
@@ -107,7 +110,7 @@ export default function UploadPage() {
               experience: entrySnapshot.experience,
               notes: entrySnapshot.notes,
               filename: fileRef.name,
-              fileData: reader.result as string,
+              fileData: rawBase64,
             });
             updateFile(idx, { progress: 100, done: true, uploading: false });
             toast.success(`${entrySnapshot.name} uploaded successfully!`);
