@@ -27,7 +27,7 @@ export default function UploadPage() {
   const { data: allCategories = [] } = useCategories();
   const categories = allCategories.filter(c => c.active);
   const intervalsRef = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map());
-  const queryClient = useQueryClient();
+  const addResumeMutation = useAddResume();
 
   useEffect(() => {
     return () => {
