@@ -22,6 +22,9 @@ export interface Resume {
   fileData: string | null;
   uploadDate: string;
   uploadedBy: string;
+  aiScore: number;
+  aiSummary: string;
+  aiStatus: string;
 }
 
 export interface Category {
@@ -81,6 +84,9 @@ function dbToResume(r: any): Resume {
     fileData: r.file_data,
     uploadDate: r.created_at,
     uploadedBy: r.uploaded_by || 'admin',
+    aiScore: r.ai_score ?? 0,
+    aiSummary: r.ai_summary ?? '',
+    aiStatus: r.ai_status ?? 'pending',
   };
 }
 
@@ -90,8 +96,8 @@ export async function fetchResumes(): Promise<Resume[]> {
   return (data || []).map(dbToResume);
 }
 
-export async function addResume(obj: Omit<Resume, 'id' | 'uploadDate' | 'uploadedBy'>) {
-  const { error } = await supabase.from('resumes').insert({
+export async function addResume(obj: Omit<Resume, 'id' | 'uploadDate' | 'uploadedBy' | 'aiScore' | 'aiSummary' | 'aiStatus'>): Promise<Resume> {
+  const { data, error } = await supabase.from('resumes').insert({
     name: obj.name,
     email: obj.email || '',
     phone: obj.phone || '',
@@ -102,7 +108,20 @@ export async function addResume(obj: Omit<Resume, 'id' | 'uploadDate' | 'uploade
     filename: obj.filename,
     file_data: obj.fileData,
     uploaded_by: 'admin',
-  });
+    ai_status: 'pending',
+  }).select().single();
+  if (error) throw error;
+  return dbToResume(data);
+}
+
+export async function fetchResumeById(id: string): Promise<Resume | null> {
+  const { data, error } = await supabase.from('resumes').select('*').eq('id', id).single();
+  if (error || !data) return null;
+  return dbToResume(data);
+}
+
+export async function updateResumeAiStatus(id: string, status: string) {
+  const { error } = await supabase.from('resumes').update({ ai_status: status } as any).eq('id', id);
   if (error) throw error;
 }
 

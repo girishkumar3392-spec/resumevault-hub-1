@@ -1,0 +1,3 @@
+ALTER TABLE public.resumes ADD COLUMN IF NOT EXISTS ai_score INTEGER DEFAULT 0;
+ALTER TABLE public.resumes ADD COLUMN IF NOT EXISTS ai_summary TEXT DEFAULT '';
+ALTER TABLE public.resumes ADD COLUMN IF NOT EXISTS ai_status TEXT DEFAULT 'pending';

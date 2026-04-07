@@ -70,6 +70,9 @@ export type Database = {
       }
       resumes: {
         Row: {
+          ai_score: number | null
+          ai_status: string | null
+          ai_summary: string | null
           category: string
           created_at: string
           email: string | null
@@ -85,6 +88,9 @@ export type Database = {
           uploaded_by: string | null
         }
         Insert: {
+          ai_score?: number | null
+          ai_status?: string | null
+          ai_summary?: string | null
           category: string
           created_at?: string
           email?: string | null
@@ -100,6 +106,9 @@ export type Database = {
           uploaded_by?: string | null
         }
         Update: {
+          ai_score?: number | null
+          ai_status?: string | null
+          ai_summary?: string | null
           category?: string
           created_at?: string
           email?: string | null
