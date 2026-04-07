@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
-import { Search, Eye, Trash2, Download, FileText, X, MapPin, SlidersHorizontal } from "lucide-react";
+import { Search, Eye, Trash2, Download, FileText, X, MapPin, SlidersHorizontal, Brain, Sparkles } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { formatDate, categoryColor, categoryInitials, exportCSV } from "@/lib/store";
-import { useResumes, useCategories, useDeleteResume } from "@/hooks/use-data";
+import { useResumes, useCategories, useDeleteResume, useAiPolling } from "@/hooks/use-data";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -18,6 +18,7 @@ export default function BrowsePage() {
   const { data: allCategories = [] } = useCategories();
   const categories = allCategories.filter(c => c.active);
   const deleteMutation = useDeleteResume();
+  useAiPolling();
 
   const allLocations = useMemo(() => {
     const locs = allResumes.map(r => r.location || '').filter(Boolean);
