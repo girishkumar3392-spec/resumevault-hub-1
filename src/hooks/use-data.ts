@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import {
-  fetchResumes, fetchCategories, fetchSettings,
+  fetchResumes, fetchCategories, fetchSettings, fetchResumeById, updateResumeAiStatus,
   addResume as addResumeFn, deleteResume as deleteResumeFn, updateResume as updateResumeFn,
   addCategory as addCategoryFn, updateCategory as updateCategoryFn, deleteCategory as deleteCategoryFn,
   saveSettings as saveSettingsFn,
@@ -10,27 +11,24 @@ import {
 // ─── n8n Webhook URL ───────────────────────────────────────────────────────────
 const N8N_WEBHOOK_URL = "https://gauravprajapati.app.n8n.cloud/webhook/9d4e6a0f-7e84-4cc7-85f4-17ecc19c1f82";
 
-// ─── Helper: Resume upload hone pe n8n ko notify karo ─────────────────────────
-async function triggerN8nWebhook(resume: Resume, fileData?: string) {
+async function triggerN8nWebhook(resume: Resume) {
   try {
     await fetch(N8N_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        resumeId: resume.id,
         candidateName: resume.name,
         email: resume.email,
         phone: resume.phone,
         category: resume.category,
         experience: resume.experience,
+        fileData: resume.fileData ?? null,
         filename: resume.filename,
-        fileData: fileData ?? null,   // base64 PDF agar available ho
-        resumeId: resume.id,
-        uploadDate: resume.uploadDate,
       }),
     });
     console.log("n8n webhook triggered successfully");
   } catch (err) {
-    // Webhook fail hone pe bhi main upload block nahi hoga
     console.warn("n8n webhook call failed (non-blocking):", err);
   }
 }
@@ -51,17 +49,40 @@ export function useSettings() {
 export function useAddResume() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (obj: Omit<Resume, 'id' | 'uploadDate' | 'uploadedBy'>) => {
-      // Step 1: Supabase mein save karo
+    mutationFn: async (obj: Omit<Resume, 'id' | 'uploadDate' | 'uploadedBy' | 'aiScore' | 'aiSummary' | 'aiStatus'>) => {
       const savedResume = await addResumeFn(obj);
-
-      // Step 2: Background mein n8n ko trigger karo (non-blocking)
-      triggerN8nWebhook(savedResume, obj.fileData ?? undefined);
-
+      // Set status to analyzing and trigger webhook
+      updateResumeAiStatus(savedResume.id, 'analyzing').catch(() => {});
+      triggerN8nWebhook(savedResume);
       return savedResume;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['resumes'] }),
   });
+}
+
+// Auto-refresh: poll resumes with "analyzing" status every 10s
+export function useAiPolling() {
+  const qc = useQueryClient();
+  const { data: resumes = [] } = useResumes();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const analyzingIds = resumes.filter(r => r.aiStatus === 'analyzing').map(r => r.id);
+
+  useEffect(() => {
+    if (analyzingIds.length === 0) {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+      return;
+    }
+    intervalRef.current = setInterval(async () => {
+      let anyDone = false;
+      for (const id of analyzingIds) {
+        const r = await fetchResumeById(id);
+        if (r && r.aiStatus === 'done') anyDone = true;
+      }
+      if (anyDone) qc.invalidateQueries({ queryKey: ['resumes'] });
+    }, 10000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [analyzingIds.join(',')]);
 }
 
 export function useDeleteResume() {
