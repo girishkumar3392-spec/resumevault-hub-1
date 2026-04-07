@@ -143,12 +143,31 @@ export default function BrowsePage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-1.5 mb-3">
+                    <div className="flex flex-wrap gap-1.5 mb-2">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11.5px] font-medium" style={{ background: categoryColor(r.category, allCategories) + '26', color: categoryColor(r.category, allCategories) }}>
                         {r.category}
                       </span>
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11.5px] font-medium bg-accent-dim text-primary">{r.experience}</span>
+                      {/* AI Score Badge */}
+                      {r.aiStatus === 'done' && (
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${r.aiScore > 70 ? 'bg-emerald-500/15 text-emerald-400' : r.aiScore >= 40 ? 'bg-yellow-500/15 text-yellow-400' : 'bg-red-500/15 text-red-400'}`}>
+                          <Sparkles className="w-3 h-3" /> {r.aiScore}
+                        </span>
+                      )}
+                      {/* AI Status Pill */}
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                        r.aiStatus === 'done' ? 'bg-emerald-500/15 text-emerald-400' :
+                        r.aiStatus === 'analyzing' ? 'bg-blue-500/15 text-blue-400 animate-pulse' :
+                        'bg-muted text-muted-foreground'
+                      }`}>
+                        <Brain className="w-3 h-3" />
+                        {r.aiStatus === 'done' ? 'AI Done' : r.aiStatus === 'analyzing' ? 'Analyzing…' : 'Pending'}
+                      </span>
                     </div>
+                    {/* AI Summary */}
+                    {r.aiStatus === 'done' && r.aiSummary && (
+                      <p className="text-[11px] text-muted-foreground leading-relaxed mb-2 line-clamp-2">{r.aiSummary}</p>
+                    )}
                     <div className="flex items-center justify-between pt-2.5 border-t border-border">
                       <span className="text-[11.5px] text-muted-foreground">{formatDate(r.uploadDate)}</span>
                       <div className="flex gap-1.5">
