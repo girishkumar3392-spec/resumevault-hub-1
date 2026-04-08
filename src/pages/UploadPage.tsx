@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 interface FileEntry {
   file: File;
   name: string;
-  category: string;
+  selectedCategories: string[];
   experience: string;
   email: string;
   phone: string;
@@ -41,7 +41,7 @@ export default function UploadPage() {
     const entries: FileEntry[] = Array.from(fileList).map(f => ({
       file: f,
       name: f.name.replace(/[._-]/g, ' ').replace(/\.(pdf|docx?|rtf)$/i, '').replace(/\b\w/g, l => l.toUpperCase()).trim(),
-      category: categories[0]?.name || '',
+      selectedCategories: categories.length > 0 ? [categories[0].name] : [],
       experience: 'Mid-Level',
       email: '',
       phone: '',
@@ -65,6 +65,16 @@ export default function UploadPage() {
     setFiles(prev => prev.map((f, i) => i === idx ? { ...f, ...data } : f));
   };
 
+  const toggleCategory = (idx: number, catName: string) => {
+    setFiles(prev => prev.map((f, i) => {
+      if (i !== idx) return f;
+      const selected = f.selectedCategories.includes(catName)
+        ? f.selectedCategories.filter(c => c !== catName)
+        : [...f.selectedCategories, catName];
+      return { ...f, selectedCategories: selected };
+    }));
+  };
+
   const removeFile = (idx: number) => {
     const interval = intervalsRef.current.get(idx);
     if (interval) { clearInterval(interval); intervalsRef.current.delete(idx); }
@@ -78,8 +88,8 @@ export default function UploadPage() {
   const uploadFile = (idx: number) => {
     const entry = files[idx];
     if (!entry || entry.done || entry.uploading) return;
-    if (!entry.name.trim() || !entry.category) {
-      toast.error('Name and category are required');
+    if (!entry.name.trim() || entry.selectedCategories.length === 0) {
+      toast.error('Name and at least one category are required');
       return;
     }
 
@@ -98,15 +108,14 @@ export default function UploadPage() {
         const reader = new FileReader();
         reader.onload = async () => {
           try {
-            // base64 prefix remove karo — sirf pure base64 data chahiye
             const rawBase64 = (reader.result as string).replace(/^data:.*?;base64,/, '');
-            
+
             await addResumeMutation.mutateAsync({
               name: entrySnapshot.name,
               email: entrySnapshot.email,
               phone: entrySnapshot.phone,
               location: entrySnapshot.location,
-              category: entrySnapshot.category,
+              category: entrySnapshot.selectedCategories.join(', '),
               experience: entrySnapshot.experience,
               notes: entrySnapshot.notes,
               filename: fileRef.name,
@@ -114,8 +123,8 @@ export default function UploadPage() {
             });
             updateFile(idx, { progress: 100, done: true, uploading: false });
             toast.success(`${entrySnapshot.name} uploaded successfully!`);
-            toast.info('🤖 AI analysis in progress...', { duration: 5000 });
           } catch (err) {
+            console.error('Upload error:', err);
             updateFile(idx, { uploading: false, progress: 0 });
             toast.error(`Failed to upload ${entrySnapshot.name}`);
           }
@@ -218,12 +227,6 @@ export default function UploadPage() {
                         <input value={entry.name} onChange={e => updateFile(i, { name: e.target.value })} className="w-full py-2 px-3 bg-input border border-border rounded-md text-foreground text-sm outline-none focus:border-primary/50 transition-all" />
                       </div>
                       <div>
-                        <label className="block text-[12px] font-medium text-muted-foreground mb-1">Category *</label>
-                        <select value={entry.category} onChange={e => updateFile(i, { category: e.target.value })} className="w-full py-2 px-3 bg-input border border-border rounded-md text-foreground text-sm outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer">
-                          {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                        </select>
-                      </div>
-                      <div>
                         <label className="block text-[12px] font-medium text-muted-foreground mb-1">Experience</label>
                         <select value={entry.experience} onChange={e => updateFile(i, { experience: e.target.value })} className="w-full py-2 px-3 bg-input border border-border rounded-md text-foreground text-sm outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer">
                           {['Fresher', 'Junior', 'Mid-Level', 'Senior'].map(e => <option key={e} value={e}>{e}</option>)}
@@ -246,6 +249,30 @@ export default function UploadPage() {
                         <input value={entry.notes} onChange={e => updateFile(i, { notes: e.target.value })} placeholder="Optional notes" className="w-full py-2 px-3 bg-input border border-border rounded-md text-foreground text-sm outline-none focus:border-primary/50 transition-all placeholder:text-muted-foreground" />
                       </div>
                     </div>
+
+                    {/* Multi-Category Checkboxes */}
+                    <div className="mb-3">
+                      <label className="block text-[12px] font-medium text-muted-foreground mb-2">Categories * <span className="text-[11px] font-normal">(select one or more)</span></label>
+                      <div className="flex flex-wrap gap-2">
+                        {categories.map(c => {
+                          const isSelected = entry.selectedCategories.includes(c.name);
+                          return (
+                            <label key={c.id}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium cursor-pointer border transition-all ${
+                                isSelected
+                                  ? 'border-primary/50 bg-primary/15 text-primary'
+                                  : 'border-border bg-hover text-muted-foreground hover:border-primary/30'
+                              }`}>
+                              <input type="checkbox" checked={isSelected} onChange={() => toggleCategory(i, c.name)} className="sr-only" />
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} />
+                              {c.name}
+                            </label>
+                          );
+                        })}
+                        {categories.length === 0 && <p className="text-[11px] text-muted-foreground">No categories available. Add some in Categories page first.</p>}
+                      </div>
+                    </div>
+
                     <div className="flex items-center gap-2">
                       <button onClick={() => uploadFile(i)} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-primary text-primary-foreground rounded-md text-[13px] font-medium hover:brightness-110 transition-all cursor-pointer">
                         <Upload className="w-3.5 h-3.5" /> Upload

@@ -1,5 +1,3 @@
-// ResumeVault — Supabase data layer + localStorage auth (legacy)
-
 import { supabase } from "@/integrations/supabase/client";
 
 const CAT_COLORS = [
@@ -15,16 +13,13 @@ export interface Resume {
   email: string;
   phone: string;
   location: string;
-  category: string;
+  category: string; // comma-separated for multi-category
   experience: string;
   notes: string;
   filename: string;
   fileData: string | null;
   uploadDate: string;
   uploadedBy: string;
-  aiScore: number;
-  aiSummary: string;
-  aiStatus: string;
 }
 
 export interface Category {
@@ -41,7 +36,7 @@ export interface Settings {
   logoData: string | null;
 }
 
-// ── Auth (stays localStorage) ──
+// ── Auth (localStorage) ──
 export function isLoggedIn(): boolean {
   try {
     const s = JSON.parse(localStorage.getItem('rv_session') || 'null');
@@ -84,9 +79,6 @@ function dbToResume(r: any): Resume {
     fileData: r.file_data,
     uploadDate: r.created_at,
     uploadedBy: r.uploaded_by || 'admin',
-    aiScore: r.ai_score ?? 0,
-    aiSummary: r.ai_summary ?? '',
-    aiStatus: r.ai_status ?? 'pending',
   };
 }
 
@@ -96,7 +88,7 @@ export async function fetchResumes(): Promise<Resume[]> {
   return (data || []).map(dbToResume);
 }
 
-export async function addResume(obj: Omit<Resume, 'id' | 'uploadDate' | 'uploadedBy' | 'aiScore' | 'aiSummary' | 'aiStatus'>): Promise<Resume> {
+export async function addResume(obj: Omit<Resume, 'id' | 'uploadDate' | 'uploadedBy'>): Promise<Resume> {
   const { data, error } = await supabase.from('resumes').insert({
     name: obj.name,
     email: obj.email || '',
@@ -108,21 +100,9 @@ export async function addResume(obj: Omit<Resume, 'id' | 'uploadDate' | 'uploade
     filename: obj.filename,
     file_data: obj.fileData,
     uploaded_by: 'admin',
-    ai_status: 'pending',
   }).select().single();
   if (error) throw error;
   return dbToResume(data);
-}
-
-export async function fetchResumeById(id: string): Promise<Resume | null> {
-  const { data, error } = await supabase.from('resumes').select('*').eq('id', id).single();
-  if (error || !data) return null;
-  return dbToResume(data);
-}
-
-export async function updateResumeAiStatus(id: string, status: string) {
-  const { error } = await supabase.from('resumes').update({ ai_status: status } as any).eq('id', id);
-  if (error) throw error;
 }
 
 export async function deleteResume(id: string) {
@@ -224,10 +204,15 @@ export function categoryInitials(name: string): string {
 export function getMostPopularCategory(resumes: Resume[], categories: Category[]): string {
   const cats = categories.filter(c => c.active);
   if (!cats.length || !resumes.length) return '—';
+  const counts: Record<string, number> = {};
+  resumes.forEach(r => {
+    r.category.split(',').map(c => c.trim()).filter(Boolean).forEach(cat => {
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+  });
   let max = 0, best = '—';
-  cats.forEach(c => {
-    const cnt = resumes.filter(r => r.category === c.name).length;
-    if (cnt > max) { max = cnt; best = c.name; }
+  Object.entries(counts).forEach(([cat, cnt]) => {
+    if (cnt > max && cats.some(c => c.name === cat)) { max = cnt; best = cat; }
   });
   return best;
 }
