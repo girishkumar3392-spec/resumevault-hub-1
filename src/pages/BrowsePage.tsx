@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
-import { Search, Eye, Trash2, Download, FileText, X, MapPin, SlidersHorizontal, Brain, Sparkles } from "lucide-react";
+import { Search, Eye, Trash2, Download, FileText, X, MapPin, SlidersHorizontal } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import { formatDate, categoryColor, categoryInitials, exportCSV } from "@/lib/store";
-import { useResumes, useCategories, useDeleteResume, useAiPolling } from "@/hooks/use-data";
+import { formatDate, categoryColor, exportCSV } from "@/lib/store";
+import { useResumes, useCategories, useDeleteResume } from "@/hooks/use-data";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -14,21 +14,25 @@ export default function BrowsePage() {
   const [viewResume, setViewResume] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
-  const { data: allResumes = [] } = useResumes();
+  const { data: allResumes = [], isLoading } = useResumes();
   const { data: allCategories = [] } = useCategories();
   const categories = allCategories.filter(c => c.active);
   const deleteMutation = useDeleteResume();
-  useAiPolling();
 
   const allLocations = useMemo(() => {
     const locs = allResumes.map(r => r.location || '').filter(Boolean);
     return [...new Set(locs)].sort();
   }, [allResumes]);
 
+  // Parse comma-separated categories for a resume
+  const getResumeCategories = (cat: string) => cat.split(',').map(c => c.trim()).filter(Boolean);
+
   const filtered = useMemo(() => {
     return allResumes.filter(r => {
-      const matchSearch = !search || r.name.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase()) || (r.email || '').toLowerCase().includes(search.toLowerCase()) || (r.location || '').toLowerCase().includes(search.toLowerCase());
-      const matchCat = catFilter.length === 0 || catFilter.includes(r.category);
+      const q = search.toLowerCase();
+      const matchSearch = !search || r.name.toLowerCase().includes(q) || r.category.toLowerCase().includes(q) || (r.email || '').toLowerCase().includes(q) || (r.phone || '').toLowerCase().includes(q) || (r.location || '').toLowerCase().includes(q) || (r.notes || '').toLowerCase().includes(q);
+      const resumeCats = getResumeCategories(r.category);
+      const matchCat = catFilter.length === 0 || catFilter.some(f => resumeCats.includes(f));
       const matchExp = expFilter.length === 0 || expFilter.includes(r.experience);
       const matchLoc = locFilter.length === 0 || locFilter.includes(r.location || '');
       return matchSearch && matchCat && matchExp && matchLoc;
@@ -48,6 +52,9 @@ export default function BrowsePage() {
     }
   };
 
+  // Count resumes per category (multi-category aware)
+  const catCount = (catName: string) => allResumes.filter(r => getResumeCategories(r.category).includes(catName)).length;
+
   const detail = viewResume ? allResumes.find(r => r.id === viewResume) : null;
 
   return (
@@ -58,143 +65,137 @@ export default function BrowsePage() {
         </button>
       </PageHeader>
       <div className="p-4 md:p-7 flex-1">
-        <div className="flex flex-col md:flex-row gap-4 md:gap-5 items-start">
-          <button onClick={() => setShowFilters(!showFilters)}
-            className="md:hidden w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 bg-card border border-border rounded-lg text-[13px] font-medium text-foreground cursor-pointer">
-            <SlidersHorizontal className="w-4 h-4" />
-            Filters {(catFilter.length + expFilter.length + locFilter.length) > 0 && `(${catFilter.length + expFilter.length + locFilter.length})`}
-          </button>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="flex flex-col md:flex-row gap-4 md:gap-5 items-start">
+            <button onClick={() => setShowFilters(!showFilters)}
+              className="md:hidden w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 bg-card border border-border rounded-lg text-[13px] font-medium text-foreground cursor-pointer">
+              <SlidersHorizontal className="w-4 h-4" />
+              Filters {(catFilter.length + expFilter.length + locFilter.length) > 0 && `(${catFilter.length + expFilter.length + locFilter.length})`}
+            </button>
 
-          <div className={`w-full md:w-60 shrink-0 bg-card border border-border rounded-lg p-4 md:sticky md:top-20 ${showFilters ? 'block' : 'hidden md:block'}`}>
-            <div className="text-[13px] font-bold text-foreground mb-3.5 flex items-center justify-between">
-              Filters
-              {(catFilter.length > 0 || expFilter.length > 0 || locFilter.length > 0) && (
-                <button onClick={() => { setCatFilter([]); setExpFilter([]); setLocFilter([]); }} className="text-[11px] text-primary cursor-pointer hover:underline">Clear</button>
+            <div className={`w-full md:w-60 shrink-0 bg-card border border-border rounded-lg p-4 md:sticky md:top-20 ${showFilters ? 'block' : 'hidden md:block'}`}>
+              <div className="text-[13px] font-bold text-foreground mb-3.5 flex items-center justify-between">
+                Filters
+                {(catFilter.length > 0 || expFilter.length > 0 || locFilter.length > 0) && (
+                  <button onClick={() => { setCatFilter([]); setExpFilter([]); setLocFilter([]); }} className="text-[11px] text-primary cursor-pointer hover:underline">Clear</button>
+                )}
+              </div>
+
+              <div className="mb-4">
+                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Experience</div>
+                {['Fresher', 'Junior', 'Mid-Level', 'Senior'].map(e => (
+                  <label key={e} className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer text-[13px] text-muted-foreground hover:bg-hover hover:text-foreground transition-all">
+                    <input type="checkbox" checked={expFilter.includes(e)} onChange={() => toggleFilter(expFilter, e, setExpFilter)} className="accent-primary w-3.5 h-3.5" />
+                    {e}
+                    <span className="ml-auto text-[11px] text-muted-foreground bg-hover px-1.5 py-0.5 rounded-full">{allResumes.filter(r => r.experience === e).length}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="mb-4">
+                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Location</div>
+                <div className="max-h-48 overflow-y-auto space-y-0.5">
+                  {allLocations.map(loc => (
+                    <label key={loc} className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer text-[13px] text-muted-foreground hover:bg-hover hover:text-foreground transition-all">
+                      <input type="checkbox" checked={locFilter.includes(loc)} onChange={() => toggleFilter(locFilter, loc, setLocFilter)} className="accent-primary w-3.5 h-3.5" />
+                      <MapPin className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{loc}</span>
+                      <span className="ml-auto text-[11px] text-muted-foreground bg-hover px-1.5 py-0.5 rounded-full shrink-0">{allResumes.filter(r => r.location === loc).length}</span>
+                    </label>
+                  ))}
+                  {allLocations.length === 0 && <p className="text-[11px] text-muted-foreground py-1">No locations yet</p>}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Category</div>
+                <div className="max-h-60 overflow-y-auto space-y-0.5">
+                  {categories.map(c => (
+                    <label key={c.id} className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer text-[13px] text-muted-foreground hover:bg-hover hover:text-foreground transition-all">
+                      <input type="checkbox" checked={catFilter.includes(c.name)} onChange={() => toggleFilter(catFilter, c.name, setCatFilter)} className="accent-primary w-3.5 h-3.5" />
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} />
+                      <span className="truncate">{c.name}</span>
+                      <span className="ml-auto text-[11px] text-muted-foreground bg-hover px-1.5 py-0.5 rounded-full shrink-0">{catCount(c.name)}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                <div className="relative flex-1 max-w-xs">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, email, skills..." className="w-full py-2 pl-8 pr-3 bg-card border border-border rounded-md text-foreground text-[13.5px] outline-none focus:border-primary/50 transition-all placeholder:text-muted-foreground" />
+                </div>
+                <span className="text-[13px] text-muted-foreground">
+                  Showing <span className="text-foreground font-semibold">{filtered.length}</span> results
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                <AnimatePresence>
+                  {filtered.map(r => {
+                    const resumeCats = getResumeCategories(r.category);
+                    return (
+                      <motion.div key={r.id} layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+                        className="bg-card border border-border rounded-lg p-4 hover:border-primary/20 hover:-translate-y-0.5 transition-all hover:shadow-lg">
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="w-10 h-10 rounded-[10px] flex items-center justify-center font-display font-bold text-[15px] text-primary-foreground shrink-0 bg-primary">
+                            {r.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-foreground leading-tight mb-0.5">{r.name}</div>
+                            <div className="text-xs text-muted-foreground">{r.email || r.phone || '—'}</div>
+                            {r.location && (
+                              <div className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <MapPin className="w-3 h-3" /> {r.location}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {resumeCats.map(cat => (
+                            <span key={cat} className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ background: categoryColor(cat, allCategories) + '26', color: categoryColor(cat, allCategories) }}>
+                              {cat}
+                            </span>
+                          ))}
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-accent-dim text-primary">{r.experience}</span>
+                        </div>
+                        {r.notes && <p className="text-[11px] text-muted-foreground leading-relaxed mb-2 line-clamp-2">{r.notes}</p>}
+                        <div className="flex items-center justify-between pt-2.5 border-t border-border">
+                          <span className="text-[11.5px] text-muted-foreground">{formatDate(r.uploadDate)}</span>
+                          <div className="flex gap-1.5">
+                            <button onClick={() => setViewResume(r.id)} className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all cursor-pointer">
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => handleDelete(r.id, r.name)} className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-destructive hover:border-destructive hover:bg-red-dim transition-all cursor-pointer">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+
+              {filtered.length === 0 && !isLoading && (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="w-16 h-16 bg-hover rounded-2xl flex items-center justify-center mb-4">
+                    <FileText className="w-7 h-7 text-muted-foreground" />
+                  </div>
+                  <div className="text-[15px] font-semibold text-foreground mb-1.5">No resumes found</div>
+                  <div className="text-[13px] text-muted-foreground max-w-[280px]">Try adjusting your filters or search term</div>
+                </div>
               )}
             </div>
-
-            <div className="mb-4">
-              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Experience</div>
-              {['Fresher', 'Junior', 'Mid-Level', 'Senior'].map(e => (
-                <label key={e} className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer text-[13px] text-muted-foreground hover:bg-hover hover:text-foreground transition-all">
-                  <input type="checkbox" checked={expFilter.includes(e)} onChange={() => toggleFilter(expFilter, e, setExpFilter)} className="accent-primary w-3.5 h-3.5" />
-                  {e}
-                  <span className="ml-auto text-[11px] text-muted-foreground bg-hover px-1.5 py-0.5 rounded-full">{allResumes.filter(r => r.experience === e).length}</span>
-                </label>
-              ))}
-            </div>
-
-            <div className="mb-4">
-              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Location</div>
-              <div className="max-h-48 overflow-y-auto space-y-0.5">
-                {allLocations.map(loc => (
-                  <label key={loc} className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer text-[13px] text-muted-foreground hover:bg-hover hover:text-foreground transition-all">
-                    <input type="checkbox" checked={locFilter.includes(loc)} onChange={() => toggleFilter(locFilter, loc, setLocFilter)} className="accent-primary w-3.5 h-3.5" />
-                    <MapPin className="w-3 h-3 shrink-0" />
-                    <span className="truncate">{loc}</span>
-                    <span className="ml-auto text-[11px] text-muted-foreground bg-hover px-1.5 py-0.5 rounded-full shrink-0">{allResumes.filter(r => r.location === loc).length}</span>
-                  </label>
-                ))}
-                {allLocations.length === 0 && <p className="text-[11px] text-muted-foreground py-1">No locations yet</p>}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Category</div>
-              <div className="max-h-60 overflow-y-auto space-y-0.5">
-                {categories.map(c => (
-                  <label key={c.id} className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer text-[13px] text-muted-foreground hover:bg-hover hover:text-foreground transition-all">
-                    <input type="checkbox" checked={catFilter.includes(c.name)} onChange={() => toggleFilter(catFilter, c.name, setCatFilter)} className="accent-primary w-3.5 h-3.5" />
-                    <span className="truncate">{c.name}</span>
-                    <span className="ml-auto text-[11px] text-muted-foreground bg-hover px-1.5 py-0.5 rounded-full shrink-0">{allResumes.filter(r => r.category === c.name).length}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
           </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-              <div className="relative flex-1 max-w-xs">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search resumes..." className="w-full py-2 pl-8 pr-3 bg-card border border-border rounded-md text-foreground text-[13.5px] outline-none focus:border-primary/50 transition-all placeholder:text-muted-foreground" />
-              </div>
-              <span className="text-[13px] text-muted-foreground">
-                Showing <span className="text-foreground font-semibold">{filtered.length}</span> results
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              <AnimatePresence>
-                {filtered.map(r => (
-                  <motion.div key={r.id} layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-card border border-border rounded-lg p-4 hover:border-primary/20 hover:-translate-y-0.5 transition-all hover:shadow-lg">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-[10px] flex items-center justify-center font-display font-bold text-[15px] text-primary-foreground shrink-0" style={{ background: categoryColor(r.category, allCategories) }}>
-                        {categoryInitials(r.category)}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-foreground leading-tight mb-0.5">{r.name}</div>
-                        <div className="text-xs text-muted-foreground">{r.email || r.phone || '—'}</div>
-                        {r.location && (
-                          <div className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                            <MapPin className="w-3 h-3" /> {r.location}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 mb-2">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11.5px] font-medium" style={{ background: categoryColor(r.category, allCategories) + '26', color: categoryColor(r.category, allCategories) }}>
-                        {r.category}
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11.5px] font-medium bg-accent-dim text-primary">{r.experience}</span>
-                      {/* AI Score Badge */}
-                      {r.aiStatus === 'done' && (
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${r.aiScore > 70 ? 'bg-emerald-500/15 text-emerald-400' : r.aiScore >= 40 ? 'bg-yellow-500/15 text-yellow-400' : 'bg-red-500/15 text-red-400'}`}>
-                          <Sparkles className="w-3 h-3" /> {r.aiScore}
-                        </span>
-                      )}
-                      {/* AI Status Pill */}
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                        r.aiStatus === 'done' ? 'bg-emerald-500/15 text-emerald-400' :
-                        r.aiStatus === 'analyzing' ? 'bg-blue-500/15 text-blue-400 animate-pulse' :
-                        'bg-muted text-muted-foreground'
-                      }`}>
-                        <Brain className="w-3 h-3" />
-                        {r.aiStatus === 'done' ? 'AI Done' : r.aiStatus === 'analyzing' ? 'Analyzing…' : 'Pending'}
-                      </span>
-                    </div>
-                    {/* AI Summary */}
-                    {r.aiStatus === 'done' && r.aiSummary && (
-                      <p className="text-[11px] text-muted-foreground leading-relaxed mb-2 line-clamp-2">{r.aiSummary}</p>
-                    )}
-                    <div className="flex items-center justify-between pt-2.5 border-t border-border">
-                      <span className="text-[11.5px] text-muted-foreground">{formatDate(r.uploadDate)}</span>
-                      <div className="flex gap-1.5">
-                        <button onClick={() => setViewResume(r.id)} className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all cursor-pointer">
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => handleDelete(r.id, r.name)} className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-destructive hover:border-destructive hover:bg-red-dim transition-all cursor-pointer">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-
-            {filtered.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-16 h-16 bg-hover rounded-2xl flex items-center justify-center mb-4">
-                  <FileText className="w-7 h-7 text-muted-foreground" />
-                </div>
-                <div className="text-[15px] font-semibold text-foreground mb-1.5">No resumes found</div>
-                <div className="text-[13px] text-muted-foreground max-w-[280px]">Try adjusting your filters or search term</div>
-              </div>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
       {detail && (
@@ -212,9 +213,7 @@ export default function BrowsePage() {
               <div className="space-y-3.5 mb-6">
                 {[
                   ['Name', detail.name], ['Email', detail.email || '—'], ['Phone', detail.phone || '—'],
-                  ['Location', detail.location || '—'], ['Category', detail.category], ['Experience', detail.experience],
-                  ['AI Score', detail.aiStatus === 'done' ? `${detail.aiScore}/100` : '—'],
-                  ['AI Status', detail.aiStatus], ['AI Summary', (detail.aiStatus === 'done' && detail.aiSummary) ? detail.aiSummary : '—'],
+                  ['Location', detail.location || '—'], ['Categories', detail.category || '—'], ['Experience', detail.experience],
                   ['Notes', detail.notes || '—'], ['Filename', detail.filename], ['Uploaded', formatDate(detail.uploadDate)],
                 ].map(([label, value]) => (
                   <div key={label} className="flex items-start gap-2.5 pb-3.5 border-b border-border last:border-0">
@@ -226,22 +225,16 @@ export default function BrowsePage() {
               <div>
                 <h4 className="text-sm font-display font-bold text-foreground mb-3">Resume Preview</h4>
                 {detail.fileData ? (
-                  detail.fileData.startsWith('data:application/pdf') ? (
-                    <iframe src={detail.fileData} className="w-full h-[500px] rounded-lg border border-border bg-white" title={`Preview: ${detail.name}`} />
-                  ) : (
-                    <div className="rounded-lg border border-border bg-input p-6 flex flex-col items-center justify-center gap-3 text-center">
-                      <FileText className="w-10 h-10 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Preview not available for this file format</p>
-                      <a href={detail.fileData} download={detail.filename} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-[13px] font-medium hover:brightness-110 transition-all">
-                        <Download className="w-3.5 h-3.5" /> Download File
-                      </a>
-                    </div>
-                  )
+                  (() => {
+                    const pdfDataUri = `data:application/pdf;base64,${detail.fileData}`;
+                    return (
+                      <iframe src={pdfDataUri} className="w-full h-[500px] rounded-lg border border-border bg-white" title={`Preview: ${detail.name}`} />
+                    );
+                  })()
                 ) : (
                   <div className="rounded-lg border border-border bg-input p-8 flex flex-col items-center justify-center gap-2 text-center">
                     <FileText className="w-10 h-10 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">No file data available</p>
-                    <p className="text-xs text-muted-foreground">This resume was added without a file attachment</p>
                   </div>
                 )}
               </div>
