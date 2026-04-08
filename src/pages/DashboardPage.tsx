@@ -132,7 +132,7 @@ export default function DashboardPage() {
               <div className="space-y-2">
                 {categories
                   .filter(c => c.active)
-                  .map(c => ({ ...c, count: resumes.filter(r => r.category === c.name).length }))
+                  .map(c => ({ ...c, count: resumes.filter(r => r.category.split(',').map(s => s.trim()).includes(c.name)).length }))
                   .sort((a, b) => b.count - a.count)
                   .slice(0, 5)
                   .map(c => (

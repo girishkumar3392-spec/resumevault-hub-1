@@ -12,7 +12,7 @@ export default function AnalyticsPage() {
   const categories = allCategories.filter(c => c.active);
 
   const catData = categories
-    .map(c => ({ name: c.name.length > 15 ? c.name.substring(0, 15) + '…' : c.name, value: resumes.filter(r => r.category === c.name).length, color: c.color }))
+    .map(c => ({ name: c.name.length > 15 ? c.name.substring(0, 15) + '…' : c.name, value: resumes.filter(r => r.category.split(',').map(s => s.trim()).includes(c.name)).length, color: c.color }))
     .filter(d => d.value > 0)
     .sort((a, b) => b.value - a.value)
     .slice(0, 10);
