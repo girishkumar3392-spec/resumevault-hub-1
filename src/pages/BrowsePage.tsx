@@ -1,11 +1,27 @@
-import { useState, useMemo } from "react";
-import { Search, Eye, Trash2, Download, FileText, X, MapPin, SlidersHorizontal } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Search, Eye, Trash2, Download, FileText, X, MapPin, SlidersHorizontal, Maximize2, ExternalLink } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { formatDate, categoryColor, exportCSV } from "@/lib/store";
 import { useResumes, useCategories, useDeleteResume } from "@/hooks/use-data";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
+function base64ToBlobUrl(base64: string, mime = 'application/pdf'): string {
+  const byteChars = atob(base64);
+  const byteArr = new Uint8Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+  const blob = new Blob([byteArr], { type: mime });
+  return URL.createObjectURL(blob);
+}
+
+function downloadFile(base64: string, filename: string, mime = 'application/pdf') {
+  const url = base64ToBlobUrl(base64, mime);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 export default function BrowsePage() {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState<string[]>([]);
