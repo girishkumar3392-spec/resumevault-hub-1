@@ -214,50 +214,7 @@ export default function BrowsePage() {
         )}
       </div>
 
-      {detail && (
-        <>
-          <div className="fixed inset-0 bg-black/60 z-[200] backdrop-blur-sm" onClick={() => setViewResume(null)} />
-          <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25 }}
-            className="fixed right-0 top-0 bottom-0 w-[520px] max-w-[95vw] bg-secondary border-l border-border z-[201] flex flex-col">
-            <div className="px-6 py-5 border-b border-border flex items-center justify-between shrink-0">
-              <h3 className="text-base font-display font-bold">Resume Details</h3>
-              <button onClick={() => setViewResume(null)} className="w-7 h-7 rounded-md bg-transparent text-muted-foreground cursor-pointer hover:bg-hover hover:text-foreground transition-all flex items-center justify-center border-none">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="space-y-3.5 mb-6">
-                {[
-                  ['Name', detail.name], ['Email', detail.email || '—'], ['Phone', detail.phone || '—'],
-                  ['Location', detail.location || '—'], ['Categories', detail.category || '—'], ['Experience', detail.experience],
-                  ['Notes', detail.notes || '—'], ['Filename', detail.filename], ['Uploaded', formatDate(detail.uploadDate)],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex items-start gap-2.5 pb-3.5 border-b border-border last:border-0">
-                    <span className="text-xs text-muted-foreground font-medium w-28 shrink-0 pt-0.5">{label}</span>
-                    <span className="text-[13.5px] text-foreground flex-1 break-words">{value}</span>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <h4 className="text-sm font-display font-bold text-foreground mb-3">Resume Preview</h4>
-                {detail.fileData ? (
-                  (() => {
-                    const pdfDataUri = `data:application/pdf;base64,${detail.fileData}`;
-                    return (
-                      <iframe src={pdfDataUri} className="w-full h-[500px] rounded-lg border border-border bg-white" title={`Preview: ${detail.name}`} />
-                    );
-                  })()
-                ) : (
-                  <div className="rounded-lg border border-border bg-input p-8 flex flex-col items-center justify-center gap-2 text-center">
-                    <FileText className="w-10 h-10 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">No file data available</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
+      {detail && <ResumeDetailPanel detail={detail} categories={allCategories} onClose={() => setViewResume(null)} />}
     </>
   );
 }
