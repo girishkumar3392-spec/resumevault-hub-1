@@ -180,3 +180,57 @@ export default function CategoriesPage() {
     </>
   );
 }
+
+function CategoryResumePreview({ resume }: { resume: any }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (resume.fileData) {
+      const byteChars = atob(resume.fileData);
+      const byteArr = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArr], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      setBlobUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    return undefined;
+  }, [resume.fileData, resume.id]);
+
+  if (!resume.fileData) {
+    return (
+      <div className="rounded-lg border border-border bg-input p-6 flex flex-col items-center gap-2 text-center">
+        <FileText className="w-8 h-8 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">No file attached</p>
+      </div>
+    );
+  }
+
+  const handleDownload = () => {
+    if (blobUrl) {
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = resume.filename;
+      a.click();
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-display font-bold text-foreground">Resume Preview</h4>
+        <button onClick={handleDownload} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-[12px] font-medium hover:brightness-110 transition-all cursor-pointer">
+          <Download className="w-3.5 h-3.5" /> Download
+        </button>
+      </div>
+      {blobUrl ? (
+        <iframe src={blobUrl} className="w-full h-[450px] rounded-lg border border-border bg-white" title={`Preview: ${resume.name}`} />
+      ) : (
+        <div className="rounded-lg border border-border bg-input p-6 flex flex-col items-center gap-2">
+          <FileText className="w-8 h-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Loading preview...</p>
+        </div>
+      )}
+    </div>
+  );
+}
