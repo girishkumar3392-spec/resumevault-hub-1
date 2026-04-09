@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Trash2, Eye, X, FileText, Download } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { formatDate, categoryColor, categoryInitials } from "@/lib/store";
@@ -142,26 +142,7 @@ export default function CategoriesPage() {
                       </div>
                     ))}
                   </div>
-                  {viewResumeDetail.fileData ? (
-                    viewResumeDetail.fileData.startsWith('data:application/pdf') ? (
-                      <div>
-                        <h4 className="text-sm font-display font-bold text-foreground mb-3">Resume Preview</h4>
-                        <iframe src={viewResumeDetail.fileData} className="w-full h-[450px] rounded-lg border border-border bg-white" title={`Preview: ${viewResumeDetail.name}`} />
-                      </div>
-                    ) : (
-                      <div className="rounded-lg border border-border bg-input p-6 flex flex-col items-center gap-3">
-                        <FileText className="w-8 h-8 text-muted-foreground" />
-                        <a href={viewResumeDetail.fileData} download={viewResumeDetail.filename} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-[13px] font-medium hover:brightness-110 transition-all">
-                          <Download className="w-3.5 h-3.5" /> Download
-                        </a>
-                      </div>
-                    )
-                  ) : (
-                    <div className="rounded-lg border border-border bg-input p-6 flex flex-col items-center gap-2 text-center">
-                      <FileText className="w-8 h-8 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">No file attached</p>
-                    </div>
-                  )}
+                  <CategoryResumePreview resume={viewResumeDetail} />
                 </div>
               ) : (
                 <div className="space-y-2.5">
