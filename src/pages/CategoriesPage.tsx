@@ -32,7 +32,7 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = (id: string, name: string) => {
-    const count = resumes.filter(r => r.category === name).length;
+    const count = resumes.filter(r => r.category.split(',').map(s => s.trim()).includes(name)).length;
     if (count > 0) { toast.error(`Cannot delete "${name}" — ${count} resume(s) assigned`); return; }
     if (confirm(`Delete category "${name}"?`)) {
       deleteCategoryMutation.mutate(id, {
@@ -44,7 +44,7 @@ export default function CategoriesPage() {
 
   const activeCount = categories.filter(c => c.active).length;
   const totalResumes = resumes.length;
-  const categoryResumes = viewCategory ? resumes.filter(r => r.category === viewCategory) : [];
+  const categoryResumes = viewCategory ? resumes.filter(r => r.category.split(',').map(s => s.trim()).includes(viewCategory)) : [];
   const viewResumeDetail = viewResume ? resumes.find(r => r.id === viewResume) : null;
 
   return (
@@ -76,7 +76,7 @@ export default function CategoriesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
           <AnimatePresence>
             {categories.map(c => {
-              const count = resumes.filter(r => r.category === c.name).length;
+              const count = resumes.filter(r => r.category.split(',').map(s => s.trim()).includes(c.name)).length;
               return (
                 <motion.div key={c.id} layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
                   className={`bg-card border border-border rounded-lg p-4 transition-all ${!c.active ? 'opacity-50' : ''}`}>
