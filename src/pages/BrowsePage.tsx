@@ -218,3 +218,119 @@ export default function BrowsePage() {
     </>
   );
 }
+
+// Separate component to manage Blob URL lifecycle
+function ResumeDetailPanel({ detail, categories, onClose }: { detail: any; categories: any[]; onClose: () => void }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (detail.fileData) {
+      const url = base64ToBlobUrl(detail.fileData);
+      setBlobUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    return undefined;
+  }, [detail.fileData, detail.id]);
+
+  const handleDownload = () => {
+    if (detail.fileData) downloadFile(detail.fileData, detail.filename);
+    else toast.error('No file data available');
+  };
+
+  const handleOpenNewTab = () => {
+    if (blobUrl) window.open(blobUrl, '_blank');
+    else toast.error('No file data available');
+  };
+
+  const resumeCats = detail.category.split(',').map((c: string) => c.trim()).filter(Boolean);
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/60 z-[200] backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25 }}
+        className={`fixed right-0 top-0 bottom-0 bg-secondary border-l border-border z-[201] flex flex-col transition-all ${fullscreen ? 'w-full max-w-full' : 'w-[520px] max-w-[95vw]'}`}>
+        <div className="px-4 md:px-6 py-4 border-b border-border flex items-center justify-between shrink-0 gap-2">
+          <h3 className="text-base font-display font-bold truncate">{detail.name}</h3>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {detail.fileData && (
+              <>
+                <button onClick={handleOpenNewTab} className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-primary hover:border-primary/30 transition-all cursor-pointer" title="Open in new tab">
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={handleDownload} className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-primary hover:border-primary/30 transition-all cursor-pointer" title="Download">
+                  <Download className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => setFullscreen(!fullscreen)} className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-primary hover:border-primary/30 transition-all cursor-pointer" title="Toggle fullscreen preview">
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+            <button onClick={onClose} className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-foreground transition-all cursor-pointer">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          {!fullscreen && (
+            <div className="space-y-3 mb-5">
+              {[
+                ['Name', detail.name], ['Email', detail.email || '—'], ['Phone', detail.phone || '—'],
+                ['Location', detail.location || '—'], ['Experience', detail.experience],
+                ['Notes', detail.notes || '—'], ['Filename', detail.filename], ['Uploaded', formatDate(detail.uploadDate)],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-start gap-2.5 pb-3 border-b border-border last:border-0">
+                  <span className="text-xs text-muted-foreground font-medium w-24 shrink-0 pt-0.5">{label}</span>
+                  <span className="text-[13.5px] text-foreground flex-1 break-words">{value}</span>
+                </div>
+              ))}
+              <div className="flex items-start gap-2.5 pb-3 border-b border-border">
+                <span className="text-xs text-muted-foreground font-medium w-24 shrink-0 pt-1">Categories</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {resumeCats.map((cat: string) => (
+                    <span key={cat} className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ background: categoryColor(cat, categories) + '26', color: categoryColor(cat, categories) }}>
+                      {cat}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className={fullscreen ? 'h-full' : ''}>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-display font-bold text-foreground">Resume Preview</h4>
+            </div>
+            {blobUrl ? (
+              <iframe src={blobUrl} className={`w-full rounded-lg border border-border bg-white ${fullscreen ? 'h-[calc(100%-40px)]' : 'h-[500px] md:h-[600px]'}`} title={`Preview: ${detail.name}`} />
+            ) : (
+              <div className="rounded-lg border border-border bg-input p-8 flex flex-col items-center justify-center gap-3 text-center">
+                <FileText className="w-12 h-12 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">No file data available for preview</p>
+                <p className="text-[11px] text-muted-foreground">Upload a PDF file to enable live preview</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Fullscreen PDF overlay */}
+      {fullscreen && blobUrl && (
+        <div className="fixed inset-0 z-[300] bg-black/90 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 bg-card border-b border-border shrink-0">
+            <span className="text-sm font-semibold text-foreground truncate">{detail.filename}</span>
+            <div className="flex items-center gap-2">
+              <button onClick={handleDownload} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-[12px] font-medium hover:brightness-110 transition-all cursor-pointer">
+                <Download className="w-3.5 h-3.5" /> Download
+              </button>
+              <button onClick={() => setFullscreen(false)} className="p-1.5 rounded-md bg-hover border border-border text-muted-foreground hover:text-foreground transition-all cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <iframe src={blobUrl} className="flex-1 w-full bg-white" title={`Fullscreen: ${detail.name}`} />
+        </div>
+      )}
+    </>
+  );
+}
