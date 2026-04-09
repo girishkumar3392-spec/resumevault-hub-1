@@ -157,20 +157,23 @@ export async function deleteCategory(id: string) {
 
 // ── Settings (Supabase) ──
 export async function fetchSettings(): Promise<Settings> {
-  const { data, error } = await supabase.from('settings').select('*').limit(1).single();
+  const { data, error } = await supabase.from('settings').select('*').limit(1).maybeSingle();
   if (error || !data) return { companyName: 'ResumeVault', tagline: 'Smart Hiring Intelligence', logoData: null };
   return { companyName: data.company_name || 'ResumeVault', tagline: data.tagline || '', logoData: data.logo_data };
 }
 
 export async function saveSettings(obj: Partial<Settings>) {
   const current = await fetchSettings();
-  const { data: existing } = await supabase.from('settings').select('id').limit(1).single();
+  const { data: existing } = await supabase.from('settings').select('id').limit(1).maybeSingle();
+  const payload = {
+    company_name: obj.companyName ?? current.companyName,
+    tagline: obj.tagline ?? current.tagline,
+    logo_data: obj.logoData ?? current.logoData,
+  };
   if (existing) {
-    await supabase.from('settings').update({
-      company_name: obj.companyName ?? current.companyName,
-      tagline: obj.tagline ?? current.tagline,
-      logo_data: obj.logoData ?? current.logoData,
-    }).eq('id', existing.id);
+    await supabase.from('settings').update(payload).eq('id', existing.id);
+  } else {
+    await supabase.from('settings').insert(payload);
   }
 }
 
