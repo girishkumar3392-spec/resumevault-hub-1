@@ -1,39 +1,33 @@
-import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Upload, FolderSearch, Tags, BarChart3, Settings, LogOut, X } from "lucide-react";
-import { logout } from "@/lib/store";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { LayoutDashboard, Upload, FolderSearch, Tags, BarChart3, Settings, LogOut, X, Users, Shield } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/hooks/use-data";
-import { useNavigate } from "react-router-dom";
 
 const navItems = [
   { label: 'Main', items: [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: Upload, label: 'Upload Resume', path: '/upload' },
-    { icon: FolderSearch, label: 'Browse Resumes', path: '/browse' },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
+    { icon: Upload, label: 'Upload Resume', path: '/admin/upload' },
+    { icon: FolderSearch, label: 'Browse Resumes', path: '/admin/browse' },
   ]},
   { label: 'Manage', items: [
-    { icon: Tags, label: 'Categories', path: '/categories' },
-    { icon: BarChart3, label: 'Analytics', path: '/analytics' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
+    { icon: Tags, label: 'Categories', path: '/admin/categories' },
+    { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
+    { icon: Users, label: 'Users', path: '/admin/users' },
+    { icon: Settings, label: 'Settings', path: '/admin/settings' },
   ]},
 ];
 
-interface Props {
-  open: boolean;
-  onClose: () => void;
-}
+interface Props { open: boolean; onClose: () => void; }
 
-export default function AppSidebar({ open, onClose }: Props) {
+export default function AdminSidebar({ open, onClose }: Props) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { signOut, user } = useAuth();
   const { data: settings } = useSettings();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
-  const handleNav = () => {
-    onClose();
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
   };
 
   return (
@@ -44,7 +38,7 @@ export default function AppSidebar({ open, onClose }: Props) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[15px] font-display font-bold text-foreground leading-tight truncate">{settings?.companyName || 'ResumeVault'}</div>
-          <div className="text-[10px] text-muted-foreground">Smart Hiring Intelligence</div>
+          <div className="text-[10px] text-muted-foreground flex items-center gap-1"><Shield className="w-3 h-3" /> Admin Panel</div>
         </div>
         <button onClick={onClose} className="md:hidden w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-hover flex items-center justify-center cursor-pointer">
           <X className="w-4 h-4" />
@@ -54,24 +48,15 @@ export default function AppSidebar({ open, onClose }: Props) {
       <nav className="flex-1 py-3 px-2.5 overflow-y-auto">
         {navItems.map(section => (
           <div key={section.label}>
-            <div className="text-[10px] font-semibold text-muted-foreground tracking-wider uppercase px-2.5 pt-3 pb-1.5">
-              {section.label}
-            </div>
+            <div className="text-[10px] font-semibold text-muted-foreground tracking-wider uppercase px-2.5 pt-3 pb-1.5">{section.label}</div>
             {section.items.map(item => {
               const active = location.pathname === item.path;
               return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={handleNav}
+                <Link key={item.path} to={item.path} onClick={onClose}
                   className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13.5px] font-medium transition-all no-underline ${
-                    active
-                      ? 'bg-accent-dim text-primary border-l-[3px] border-primary -ml-2.5 pl-[17px]'
-                      : 'text-muted-foreground hover:bg-hover hover:text-foreground'
-                  }`}
-                >
-                  <item.icon className="w-4 h-4 shrink-0" />
-                  {item.label}
+                    active ? 'bg-accent-dim text-primary border-l-[3px] border-primary -ml-2.5 pl-[17px]' : 'text-muted-foreground hover:bg-hover hover:text-foreground'
+                  }`}>
+                  <item.icon className="w-4 h-4 shrink-0" />{item.label}
                 </Link>
               );
             })}
@@ -82,19 +67,16 @@ export default function AppSidebar({ open, onClose }: Props) {
       <div className="p-3.5 border-t border-sidebar-border">
         <div className="flex items-center gap-2.5 p-2 rounded-md">
           <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center font-bold text-xs text-primary-foreground shrink-0">
-            AD
+            {(user?.email?.[0] || 'A').toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[13px] font-semibold text-foreground truncate">Administrator</div>
-            <div className="text-[11px] text-muted-foreground">HR Manager</div>
+            <div className="text-[13px] font-semibold text-foreground truncate">{user?.email || 'Admin'}</div>
+            <div className="text-[11px] text-muted-foreground">Administrator</div>
           </div>
         </div>
-        <button
-          onClick={handleLogout}
-          className="w-full mt-2 py-2 px-3 rounded-md bg-red-dim text-destructive border border-destructive/20 text-[13px] font-medium flex items-center justify-center gap-1.5 hover:bg-destructive/20 transition-all cursor-pointer"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          Sign Out
+        <button onClick={handleLogout}
+          className="w-full mt-2 py-2 px-3 rounded-md bg-red-dim text-destructive border border-destructive/20 text-[13px] font-medium flex items-center justify-center gap-1.5 hover:bg-destructive/20 transition-all cursor-pointer">
+          <LogOut className="w-3.5 h-3.5" /> Sign Out
         </button>
       </div>
     </aside>
