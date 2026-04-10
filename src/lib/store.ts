@@ -13,7 +13,7 @@ export interface Resume {
   email: string;
   phone: string;
   location: string;
-  category: string; // comma-separated for multi-category
+  category: string;
   experience: string;
   notes: string;
   filename: string;
@@ -36,34 +36,6 @@ export interface Settings {
   logoData: string | null;
 }
 
-// ── Auth (localStorage) ──
-export function isLoggedIn(): boolean {
-  try {
-    const s = JSON.parse(localStorage.getItem('rv_session') || 'null');
-    if (!s) return false;
-    if (Date.now() > s.expiry) { localStorage.removeItem('rv_session'); return false; }
-    return true;
-  } catch { return false; }
-}
-
-export function login(user: string, pass: string, remember: boolean): boolean {
-  const storedUser = localStorage.getItem('rv_admin_user') || 'admin';
-  const storedPwd = localStorage.getItem('rv_admin_pwd') || btoa('Admin@123');
-  if (user.trim().toLowerCase() === storedUser && btoa(pass) === storedPwd) {
-    const dur = remember ? 28800000 : 14400000;
-    localStorage.setItem('rv_session', JSON.stringify({ token: crypto.randomUUID(), expiry: Date.now() + dur, user }));
-    return true;
-  }
-  return false;
-}
-
-export function logout() { localStorage.removeItem('rv_session'); }
-
-export function initDefaults() {
-  if (!localStorage.getItem('rv_admin_pwd')) localStorage.setItem('rv_admin_pwd', btoa('Admin@123'));
-  if (!localStorage.getItem('rv_admin_user')) localStorage.setItem('rv_admin_user', 'admin');
-}
-
 // ── Resumes (Supabase) ──
 function dbToResume(r: any): Resume {
   return {
@@ -78,8 +50,13 @@ function dbToResume(r: any): Resume {
     filename: r.filename,
     fileData: r.file_data,
     uploadDate: r.created_at,
-    uploadedBy: r.uploaded_by || 'admin',
+    uploadedBy: r.uploaded_by || '',
   };
+}
+
+async function getCurrentUserId(): Promise<string> {
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id || '';
 }
 
 export async function fetchResumes(): Promise<Resume[]> {
@@ -89,6 +66,7 @@ export async function fetchResumes(): Promise<Resume[]> {
 }
 
 export async function addResume(obj: Omit<Resume, 'id' | 'uploadDate' | 'uploadedBy'>): Promise<Resume> {
+  const userId = await getCurrentUserId();
   const { data, error } = await supabase.from('resumes').insert({
     name: obj.name,
     email: obj.email || '',
@@ -99,7 +77,7 @@ export async function addResume(obj: Omit<Resume, 'id' | 'uploadDate' | 'uploade
     notes: obj.notes || '',
     filename: obj.filename,
     file_data: obj.fileData,
-    uploaded_by: 'admin',
+    uploaded_by: userId,
   }).select().single();
   if (error) throw error;
   return dbToResume(data);
